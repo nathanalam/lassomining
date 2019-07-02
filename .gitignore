@@ -89,6 +89,12 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+etc
+Include
+Lib
+Scripts
+share
+tcl
 
 # Spyder project settings
 .spyderproject
