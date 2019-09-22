@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# bioinformatics data files
+*.fna
+*.faa
+
 # C extensions
 *.so
 
