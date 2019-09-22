@@ -6,6 +6,7 @@ __pycache__/
 # bioinformatics data files
 *.fna
 *.faa
+*.json
 
 # C extensions
 *.so
