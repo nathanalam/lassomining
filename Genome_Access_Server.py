@@ -1,7 +1,10 @@
 import json
 from flask import Flask
 from flask import request
+from flask_cors import CORS
+
 app = Flask(__name__)
+CORS(app)
 
 lassopeptides = []
 with open('matches.json', 'r') as storedfile:

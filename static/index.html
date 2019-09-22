@@ -1,0 +1,44 @@
+<html>
+    <head>
+        <title>Lasso Miner</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    </head>
+    <body>
+        <h1>Lasso Miner</h1>
+        Description: 
+        <input id="desc" type="text"> <br>
+        Sequence: 
+        <input id="seq" type="text"> <br>
+        Search Pattern: 
+        <input id="pat" type="text"> <br>
+        <button id="submit">Submit</button>
+        <div id="results">
+
+        </div>
+        <script>
+            function replaceAll(str, find, replace) {
+                return str.replace(new RegExp(find, 'g'), replace);
+            }
+
+            $("#submit").click(function() {
+                $.get('http://127.0.0.1:5000/getpeptides', { 
+                    description: $("#desc").val(),
+                    sequence: $("#seq").val(),
+                    searchPattern: $("#pat").val()
+                }, function(data) {
+                    console.log(data);
+                    peptides = JSON.parse(replaceAll(data, "\'", "\""))
+                    $("#results").empty();
+                    for(var i = 0; i < peptides.length; i++) {
+                        $("#results").append(`
+                            <h3>` + peptides[i].sequence + `</h3>
+                            <p>Description: ` + peptides[i].description + `</p>
+                            <p>Search Pattern: ` + peptides[i].searchPattern + `</p>
+                            <p>Range in Genome: ` + peptides[i].searchRange + `</p>
+                        `);
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>
