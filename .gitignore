@@ -3,6 +3,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# venv
+bin
+lib64
+include
+pyvenv.cfg
+*.txt
+
+
 # bioinformatics data files
 *.fna
 *.faa
