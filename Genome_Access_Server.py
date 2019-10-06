@@ -23,11 +23,6 @@ def give_specific():
 
     returnList = []
 
-    print(str(description) + " - " + str(sequence) + " - " + str(searchPattern))
-    print(not description)
-    print(not sequence)
-    print(not searchPattern)
-
     for peptide in lassopeptides:
         if (
             (not description or description in peptide["description"]) and 
