@@ -5,26 +5,56 @@
     </head>
     <body>
         <h1>Lasso Miner</h1>
+        Genome: 
+        <input id="gen" type="text" list="genomes" name="genomes">
+        <datalist id="genomes">
+            <option value="Internet Explorer">
+            <option value="Firefox">
+            <option value="Chrome">
+            <option value="Opera">
+            <option value="Safari">
+        </datalist>
+        <br>
         Description: 
         <input id="desc" type="text"> <br>
         Sequence: 
         <input id="seq" type="text"> <br>
         Search Pattern: 
         <input id="pat" type="text"> <br>
+        Min position in range: 
+        <input id="min" type="text"> <br>
+        Max position in range: 
+        <input id="max" type="text"> <br>
         <button id="submit">Submit</button>
         <div id="results">
 
         </div>
         <script>
+            $(document).ready(function() {
+                $.get('http://127.0.0.1:5000/genomeList', {}, function(data) {
+                    console.log(data);
+                    genomeList = Object.keys(JSON.parse(replaceAll(data, "\'", "\"")));
+                    $("#genomes").empty();
+                    for(var i = 0; i < genomeList.length; i++) {
+                        $("#genomes").append(`
+                            <option value="` + genomeList[i] + `">
+                        `);
+                    }
+                });
+            });
+
             function replaceAll(str, find, replace) {
                 return str.replace(new RegExp(find, 'g'), replace);
             }
 
             $("#submit").click(function() {
                 $.get('http://127.0.0.1:5000/getpeptides', { 
+                    genome: $("#gen").val(),
                     description: $("#desc").val(),
                     sequence: $("#seq").val(),
-                    searchPattern: $("#pat").val()
+                    searchPattern: $("#pat").val(),
+                    minRange: $("#min").val(),
+                    maxRange: $("#max").val()
                 }, function(data) {
                     console.log(data);
                     peptides = JSON.parse(replaceAll(data, "\'", "\""))
@@ -32,9 +62,11 @@
                     for(var i = 0; i < peptides.length; i++) {
                         $("#results").append(`
                             <h3>` + peptides[i].sequence + `</h3>
+                            <p>Genome: ` + peptides[i].genome + `</p>
                             <p>Description: ` + peptides[i].description + `</p>
                             <p>Search Pattern: ` + peptides[i].searchPattern + `</p>
                             <p>Range in Genome: ` + peptides[i].searchRange + `</p>
+                            <p>Length of Overall Sequence: ` + peptides[i].overallLength + `</p>
                         `);
                     }
                 });
