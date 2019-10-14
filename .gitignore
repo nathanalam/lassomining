@@ -15,6 +15,7 @@ pyvenv.cfg
 *.fna
 *.faa
 *.json
+*.csv
 
 # C extensions
 *.so
