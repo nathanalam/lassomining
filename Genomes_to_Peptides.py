@@ -275,13 +275,19 @@ def patternMatch(overallSequence, pattern, description):
             elif ORF == -3:
                 indices[0] = len(overallSequence) - indices[0] - 2
                 indices[1] = len(overallSequence) - indices[1] - 2
+            gen = description
+            try:
+                gen = description[:description.index("/")]
+            except:
+                gen = description
+
             matchedProteinList.append({
                 "description": description,
                 "sequence": match.group(0),
                 "searchPattern": match.re.pattern,
                 "searchRange": indices,
                 "overallLength": len(overallSequence),
-                "genome": description[:description.index("/")]
+                "genome": gen
                 ## "overallString": match.string
             })
     return matchedProteinList

@@ -21,6 +21,7 @@ pyvenv.cfg
 *.so
 
 # Distribution / packaging
+masts
 .Python
 build/
 develop-eggs/
