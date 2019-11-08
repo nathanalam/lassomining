@@ -77,18 +77,83 @@ def readFASTA(name, cleanspace = 0):
 
 os.system('export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH')
 
-for fastafile in DIRNAMES:
-    for pair in readFASTA(fastafile):
-        desc = pair["description"]
-        seq = pair["sequence"]
+pair = readFASTA(DIRNAMES[2])[0]
+desc = pair["description"]
+seq = pair["sequence"]
 
-        with open("temp.txt", "w") as file:
-            file.write("> " + desc + "\n")
-            file.write(seq)
+def mastSearch(sequence, memeDirB, memeDirC):
+    Bproteins = []
+    Cproteins = []
+    with open("tempseq.txt", "w") as file:
+        file.write("> " + "temporary" + "\n")
+        file.write(sequence)
+        file.close()
 
-        os.system('mast -hit_list motifs/memeb.txt temp.txt')
+    os.system('mast -hit_list ' + memeDirB + ' tempseq.txt > tempoutB.txt')
+    os.system('mast -hit_list ' + memeDirC + ' tempseq.txt > tempoutC.txt')
 
-        os.remove("temp.txt")
+    with open("tempoutB.txt", "r") as file:
+        inlines = file.readlines()
+        inlines = inlines[2:len(inlines) - 1]
+
+        
+        for line in inlines:
+            # remove ending newline character
+            line = line[:len(line) - 1]
+            params = line.split(' ')
+            newB = {
+                "strand" : int(params[1]),
+                "motif" : params[2],
+                "start" : int(params[4]),
+                "end" : int(params[5]),
+                "score" : float(params[6]),
+                "p-value" : float(params[7])
+            }
+            Bproteins.append(newB)
+        file.close()
+    with open("tempoutC.txt", "r") as file:
+        inlines = file.readlines()
+        inlines = inlines[2:len(inlines) - 1]
+
+        
+        for line in inlines:
+            # remove ending newline character
+            line = line[:len(line) - 1]
+            params = line.split()
+            newC = {
+                "strand" : int(params[1]),
+                "motif" : params[2],
+                "start" : int(params[4]),
+                "end" : int(params[5]),
+                "score" : float(params[6]),
+                "p-value" : float(params[7])
+            }
+            Cproteins.append(newC)
+        file.close()
+
+    os.remove("tempseq.txt")
+    os.remove("tempoutB.txt")
+    os.remove("tempoutC.txt")
+
+    return (Bproteins, Cproteins)
+
+pair = mastSearch(seq, "motifs/memeb.txt", "motifs/memec.txt")
+print(pair[0])
+print(pair[1])
+
+
+# for fastafile in DIRNAMES:
+#     for pair in readFASTA(fastafile):
+#         desc = pair["description"]
+#         seq = pair["sequence"]
+
+#         with open("temp.txt", "w") as file:
+#             file.write("> " + desc + "\n")
+#             file.write(seq)
+
+#         os.system('mast -hit_list motifs/memeb.txt temp.txt')
+
+#         os.remove("temp.txt")
 
 
 
