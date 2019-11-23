@@ -309,7 +309,7 @@ def patternMatch(sequenceORFs, pattern, filename):
                     "closestB": closestB,
                     "closestC": closestC,
                     "ORF": ORFs[ORF],
-                    "genome": description[:description.index("/")]
+                    # "genome": description[:description.index("/")]
                     ## "overallString": match.string
                 })
                 
