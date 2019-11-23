@@ -2,6 +2,7 @@
     <head>
         <title>Lasso Miner</title>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     </head>
     <body>
         <h1>Lasso Miner</h1>
@@ -25,6 +26,10 @@
         <input id="min" type="text"> <br>
         Max position in range: 
         <input id="max" type="text"> <br>
+        Cutoff Rank: 
+        <input id="rnk" type="text"> <br>
+        Max number of peptides: 
+        <input id="num" type="text"> <br>
         <button id="submit">Submit</button>
         <div id="results">
 
@@ -58,8 +63,22 @@
                 }, function(data) {
                     console.log(data);
                     peptides = JSON.parse(replaceAll(data, "\'", "\""))
+                    peptides.sort(function(a, b) {
+                        return a["rank"] - b["rank"]
+                    });
                     $("#results").empty();
-                    for(var i = 0; i < peptides.length; i++) {
+
+                    var cutoffR = 0;
+                    ncutoffR = parseFloat($("#rnk").val());
+                    if(ncutoffR > cutoffR) {
+                        cutoffR = ncutoffR
+                    }
+                    max = Number.MAX_SAFE_INTEGER;
+                    nmax = parseInt($("#num").val());
+                    if(nmax < max) {
+                        max = nmax;
+                    }
+                    for(var i = 0; i < peptides.length && peptides[i]["rank"] && i < max> cutoffR; i++) {
                         $("#results").append(`
                             <h3>` + peptides[i].sequence + `</h3>
                             <p>Genome: ` + peptides[i].genome + `</p>
@@ -67,7 +86,46 @@
                             <p>Search Pattern: ` + peptides[i].searchPattern + `</p>
                             <p>Range in Genome: ` + peptides[i].searchRange + `</p>
                             <p>Length of Overall Sequence: ` + peptides[i].overallLength + `</p>
+                            <p>Rank: ` + peptides[i].rank + `</p>
+                            <p>Closest B Protein: (` + peptides[i].closestB["start"] + " - " + peptides[i].closestB["end"] + `)</p>
+                            <p>Closest C Protein: (` + peptides[i].closestC["start"] + " - " + peptides[i].closestC["end"] + `)</p>
+                            <div id="plot` + i + `"></div>
+                            <h3>JSON blobs</h3>
+                            <p style="font-family:'Courier New'">` + JSON.stringify(peptides[i]) + `</p>
+
                         `);
+
+                        var sequence = {
+                            x: [0, peptides[i].overallLength],
+                            y: [1, 1],
+                            type: 'line',
+                            name: "Sequence"
+                        }
+
+                        var Aprot = {
+                            x: [peptides[i].searchRange[0], peptides[i].searchRange[1]],
+                            y: [3, 3],
+                            type: 'line',
+                            name: "A"
+                        };
+
+                        var Bprot = {
+                            x: [peptides[i].closestB["start"], peptides[i].closestB["end"]],
+                            y: [5, 5],
+                            type: 'line',
+                            name: "B"
+                        };
+
+                        var Cprot = {
+                            x: [peptides[i].closestC["start"], peptides[i].closestC["end"]],
+                            y: [7, 7],
+                            type: 'line',
+                            name: "C"
+                        };
+
+                        var plotdata = [sequence, Aprot, Bprot, Cprot];
+
+                        Plotly.newPlot('plot' + i, plotdata);
                     }
                 });
             });
