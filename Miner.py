@@ -9,6 +9,7 @@ import sys
 import os
 import json
 import math
+import pandas as pd
 
 PATTERN = 'M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*'
 # PATTERN = 'CC.CGCCC...TGGC.'
@@ -338,3 +339,9 @@ for filename in DIRNAMES:
     
 
 print("Found " + str(len(matchedProteins)) + " that satisfy the pattern: " + PATTERN)
+
+with open('matches.json', 'w') as outfile:
+    json.dump(matchedProteins, outfile)
+
+print("Writing output to 'matches.csv'")
+pd.read_json("matches.json").to_csv("matches.csv")
