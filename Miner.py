@@ -314,7 +314,7 @@ def patternMatch(sequenceORFs, pattern, filename):
                 })
                 
         ORF += 1
-    return Aproteinss
+    return Aproteins
 
 
 DIRNAMES = []
