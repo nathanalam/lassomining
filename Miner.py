@@ -240,7 +240,7 @@ def patternMatch(sequenceORFs, pattern, filename):
     ORF = 0
     for pair in sequenceORFs:
         overallSequence = pair["sequence"]
-        description = filename[8:len(filename) - 4] + " - " + pair["description"]
+        description = pair["description"]
         # find all matches in protein that match
         matchIter = re.finditer(pattern, overallSequence)
         done_looping = False
@@ -314,7 +314,7 @@ def patternMatch(sequenceORFs, pattern, filename):
                     "sequence": match.group(0),
                     "searchPattern": match.re.pattern,
                     "searchRange": indices,
-                    "overallLength": len(overallSequence),
+                    "overallLength": len(overallSequence) * 3,
                     "rank": rank,
                     "closestB": closestB,
                     "closestBs": closestBs[0:10],
