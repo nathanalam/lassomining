@@ -220,14 +220,14 @@ def patternMatch(sequenceORFs, pattern, filename):
         
         for b in newBs:
             b["ORF"] = ORFs[ORF]
-            prange = adjustRangeByORF(ORFs[ORF], len(overallSequence), b["start"], b["end"])
+            prange = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, b["start"] * 3, b["end"] * 3)
             b["start"] = prange[0]
             b["end"] = prange[1]
             
             
         for c in newCs:
             c["ORF"] = ORFs[ORF]
-            prange = adjustRangeByORF(ORFs[ORF], len(overallSequence), c["start"], c["end"])
+            prange = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, c["start"] * 3, c["end"] * 3)
             c["start"] = prange[0]
             c["end"] = prange[1]
         
@@ -253,16 +253,19 @@ def patternMatch(sequenceORFs, pattern, filename):
 
                 # get the correct range based on span
                 indices = list(match.span())
-                indices = adjustRangeByORF(ORFs[ORF], len(overallSequence), indices[0], indices[1])
+                indices = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, indices[0] * 3, indices[1] * 3)
 
                 # make the ranking calculation and find closest B and C
                 rank = 0
                 start = indices[0]
                 end = indices[1]
+                def sortFunct(prot):
+                    return (prot["start"] - start) ** 2;
 
                 term1 = 0
                 closest = float("inf")
                 closestB = None
+                closestBs = []
                 if len(Cproteins) != 0:
                     for prot in Bproteins:
                         if isOverlapping(start, end, prot["start"], prot["end"]):
@@ -274,11 +277,13 @@ def patternMatch(sequenceORFs, pattern, filename):
                             closestB = prot
                             closest = diffsquared
                         term1 += (1.0 / float(diffsquared))
-                            
+                        closestBs.append(prot)
+                closestBs.sort(key=sortFunct)
 
                 term2 = 0
                 closest = float("inf")
                 closestC = None
+                closestCs = []
                 if len(Bproteins) != 0:
 
                     for prot in Cproteins:
@@ -291,7 +296,10 @@ def patternMatch(sequenceORFs, pattern, filename):
                         if diffsquared < closest:
                             closestC = prot
                             closest = diffsquared
+
                         term2 += (1.0 / float(diffsquared))
+                        closestCs.append(prot)
+                closestCs.sort(key=sortFunct)
 
                 rank = term1 * term2
                 if rank == 0:
@@ -299,6 +307,7 @@ def patternMatch(sequenceORFs, pattern, filename):
                 else:
                     rank = -1 * math.log(rank, 10)
 
+                descriptors = description.split()
                 # append the protein to the list of proteins
                 Aproteins.append({
                     "description": description,
@@ -308,9 +317,12 @@ def patternMatch(sequenceORFs, pattern, filename):
                     "overallLength": len(overallSequence),
                     "rank": rank,
                     "closestB": closestB,
+                    "closestBs": closestBs[0:10],
                     "closestC": closestC,
+                    "closestCs": closestCs[0:10],
                     "ORF": ORFs[ORF],
-                    # "genome": description[:description.index("/")]
+                    "genome": descriptors[1] + descriptors[2],
+                    "index": descriptors[0]
                     ## "overallString": match.string
                 })
                 
