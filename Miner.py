@@ -321,7 +321,7 @@ def patternMatch(sequenceORFs, pattern, filename):
                     "closestC": closestC,
                     "closestCs": closestCs[0:10],
                     "ORF": ORFs[ORF],
-                    "genome": descriptors[1] + descriptors[2],
+                    "genome": descriptors[1] + " " + descriptors[2],
                     "index": descriptors[0]
                     ## "overallString": match.string
                 })

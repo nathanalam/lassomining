@@ -3,9 +3,11 @@
         <title>Lasso Miner</title>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+        <script type=”text/javascript” src=”http://www.ncbi.nlm.nih.gov/projects/sviewer/js/sviewer.js”></script>
     </head>
     <body>
         <h1>Lasso Miner</h1>
+        
         Genome: 
         <input id="gen" type="text" list="genomes" name="genomes">
         <datalist id="genomes">
@@ -81,18 +83,15 @@
                     for(var i = 0; i < peptides.length && peptides[i]["rank"] && i < max> cutoffR; i++) {
                         $("#results").append(`
                             <h3>` + peptides[i].sequence + `</h3>
-                            <p>Genome: ` + peptides[i].genome + `</p>
-                            <p>Description: ` + peptides[i].description + `</p>
-                            <p>Search Pattern: ` + peptides[i].searchPattern + `</p>
-                            <p>Range in Genome: ` + peptides[i].searchRange + `</p>
-                            <p>Length of Overall Sequence: ` + peptides[i].overallLength + `</p>
-                            <p>Rank: ` + peptides[i].rank + `</p>
-                            <p>Closest B Protein: (` + peptides[i].closestB["start"] + " - " + peptides[i].closestB["end"] + `)</p>
-                            <p>Closest C Protein: (` + peptides[i].closestC["start"] + " - " + peptides[i].closestC["end"] + `)</p>
                             <div id="plot` + i + `"></div>
-                            <h3>JSON blobs</h3>
                             <p style="font-family:'Courier New'">` + JSON.stringify(peptides[i]) + `</p>
-
+                            <h4>NCBI Viewer</h4>
+                            <p>` + peptides[i].index + ` = ` + peptides[i].searchRange + `</p>
+                            <iframe id="theiframe" width="900" 
+                            src="https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=` + peptides[i].index + `&from=` + peptides[i].searchRange[0] + `&to=` + peptides[i].searchRange[1] + `" 
+                            onload="if(!window._SViFrame){_SViFrame=true;window.addEventListener('message',function(e){if(e.origin=='https://www.ncbi.nlm.nih.gov' &amp;&amp; !isNaN(e.data.h))document.getElementById(e.data.f).height=parseInt(e.data.h);});}" height="291">
+                                <p>Your browser does not support iframes.</p>
+                            </iframe>
                         `);
 
                         var sequence = {
@@ -123,9 +122,43 @@
                             name: "C"
                         };
 
-                        var plotdata = [sequence, Aprot, Bprot, Cprot];
+                        
 
-                        Plotly.newPlot('plot' + i, plotdata);
+                        var otherBprots = [];
+                        for(var e = 0; e < peptides[i].closestBs.length; e++) {
+                            var newProt = {
+                                x: [peptides[i].closestBs[e]["start"], peptides[i].closestBs[e]["end"]],
+                                y: [9, 9],
+                                type: 'line',
+                                name: "B" + e
+                            };
+                            otherBprots.push(newProt);
+                        }
+
+                        var otherCprots = [];
+                        for(var e = 0; e < peptides[i].closestCs.length; e++) {
+                            var newProt = {
+                                x: [peptides[i].closestCs[e]["start"], peptides[i].closestCs[e]["end"]],
+                                y: [9, 9],
+                                type: 'line',
+                                name: "C" + e
+                            };
+                            otherCprots.push(newProt);
+                        }
+
+                        var plotdata = [sequence, Aprot, Bprot, Cprot];
+                        otherBprots.forEach(element => plotdata.push(element));
+                        otherCprots.forEach(element => plotdata.push(element));
+
+                        Plotly.newPlot('plot' + i, plotdata, {
+                                xaxis: {
+                                    range: [peptides[i].searchRange[0] - 20, peptides[i].searchRange[1] + 20]
+                                },
+                                yaxis: {
+                                    range: [0, 10]
+                                }
+                            }
+                        );
                     }
                 });
             });
