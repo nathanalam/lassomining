@@ -343,11 +343,12 @@ for dirname in os.listdir("genomes"):
 matchedProteins = []
 for filename in DIRNAMES:
     readSequences = readFASTA(filename)
-    if(not len(readSequences) == 6):
-        print("Error: sequence in file " + filename + " does not have 6 sequences for 6 ORFs")
+    if(not (len(readSequences) % 6) == 0):
+        print("Error: sequence in file " + filename + " does not have multiple of 6 sequences")
         print("Instead, it has " + str(len(readSequences)))
         raise RuntimeError
-    matchedProteins.extend(patternMatch(readSequences, PATTERN, filename))
+    for i in range(0, len(readSequences), 6):
+        matchedProteins.extend(patternMatch(readSequences[i: i + 6], PATTERN, filename))
     
 
 print("Found " + str(len(matchedProteins)) + " that satisfy the pattern: " + PATTERN)
