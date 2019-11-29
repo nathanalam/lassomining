@@ -13,10 +13,11 @@ with open('matches.json', 'r') as storedfile:
 # get the set of available genomes
 genomeList = {}
 for peptide in lassopeptides:
-    if not peptide["genome"] in genomeList:
-        genomeList[peptide["genome"]] = 1
-    else:
-        genomeList[peptide["genome"]] += 1
+    if "genome" in peptide:
+        if not peptide["genome"] in genomeList:
+            genomeList[peptide["genome"]] = 1
+        else:
+            genomeList[peptide["genome"]] += 1
 
 
 @app.route('/allpeptides')
