@@ -1,4 +1,4 @@
-# Genome Mining Scriopt
+# Genome Mining Script
 Script for genome mining in search of lasso peptides
 
 ## Installation instructions
