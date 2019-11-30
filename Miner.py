@@ -353,8 +353,8 @@ for filename in DIRNAMES:
 
 print("Found " + str(len(matchedProteins)) + " that satisfy the pattern: " + PATTERN)
 
-with open('matches.json', 'w') as outfile:
+with open('output/matches.json', 'w') as outfile:
     json.dump(matchedProteins, outfile)
 
 print("Writing output to 'matches.csv'")
-pd.read_json("matches.json").to_csv("matches.csv")
+pd.read_json("output/matches.json").to_csv("output/matches.csv")
