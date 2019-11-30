@@ -27,7 +27,7 @@ ROOT_URLCONF = __name__
 
 def home(request):
     html = "Error finding 'index.html'"
-    with open("index.html", 'r') as file:
+    with open("static/index.html", 'r') as file:
         html = file.read()
         html = str(html)
         html = html.replace("$BASE_URL$", BASE_URL)
