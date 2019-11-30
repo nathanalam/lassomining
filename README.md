@@ -28,9 +28,13 @@ python Miner.py
 This script will then read the genomes, convert any .fna files into .faa files by translating the DNA, and then store the results in a JSON file "matches.json" and a CSV file "matches.csv", under the output folder.
 
 ### Viewing results in a browser
-To make the results visible from a website, there is code to set up a small server that allows access to the lasso peptides via RESTful requests. To start the server, open up a terminal and type:
+To make the results visible from a website, there is code to set up a small server that allows access to the lasso peptides via RESTful requests. 
+
+First, change the URL of the server to whatever URL you have access to, by going into the "Server.py" file and changing the variable named "BASE_URL".
+
+To start the server, open up a terminal and type:
 ```
 source shellscripts/run.sh
 ```
 
-Then, navigate to the static directory and open up the "index.html" folder there on your local machine. This well let you search through your array of lasso peptides.
+Then, go to the URL that you set BASE_URL to - it should be running the viewer for the mined results.
