@@ -1,5 +1,9 @@
 #!/bin/bash
 
-source bin/activate
+source shellscripts/setup.sh
 
-django-admin runserver --pythonpath="." --settings=Server 5000
+python3 Downloader.py
+python3 Translator.py
+python3 Miner.py
+
+source shellscripts/view.sh
