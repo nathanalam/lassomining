@@ -2,6 +2,17 @@
 Script for genome mining in search of lasso peptides
 
 ## Installation instructions
+
+### Pre-requisites
+This software relies on the MEME suite for identifying motifs using MAST, and it relies on NCBI's Entrez system for downloading genomes based on accession numbers.
+
+To download MEME, follow these instructions: http://meme-suite.org/doc/install.html?man_type=web#quick
+
+To download Entrez, type in the following into a terminal:
+```
+sudo apt-get install entrez-direct
+```
+
 #### On a Linux/MacOS system:
 Open a terminal and type the following commands in a terminal:
 ```
