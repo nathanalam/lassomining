@@ -330,31 +330,34 @@ def patternMatch(sequenceORFs, pattern, filename):
     return Aproteins
 
 
-DIRNAMES = []
-for dirname in os.listdir("genomes"):
-    if (dirname.find(".") != -1):
-        if(dirname[len(dirname) - 3:] == "faa"):
-            DIRNAMES.append("genomes/" + dirname)
-    else:
-        for filename in os.listdir("genomes/" + dirname):
-            if(filename[len(filename) - 3:] == "faa"):
-                DIRNAMES.append("genomes/" + dirname + "/" + filename)
+def scanGenomes(runName, pattern):
+    DIRNAMES = []
+    for dirname in os.listdir("genomes"):
+        if (dirname.find(".") != -1):
+            if(dirname[len(dirname) - 3:] == "faa"):
+                DIRNAMES.append("genomes/" + dirname)
+        else:
+            for filename in os.listdir("genomes/" + dirname):
+                if(filename[len(filename) - 3:] == "faa"):
+                    DIRNAMES.append("genomes/" + dirname + "/" + filename)
 
-matchedProteins = []
-for filename in DIRNAMES:
-    readSequences = readFASTA(filename)
-    if(not (len(readSequences) % 6) == 0):
-        print("Error: sequence in file " + filename + " does not have multiple of 6 sequences")
-        print("Instead, it has " + str(len(readSequences)))
-        raise RuntimeError
-    for i in range(0, len(readSequences), 6):
-        matchedProteins.extend(patternMatch(readSequences[i: i + 6], PATTERN, filename))
-    
+    matchedProteins = []
+    for filename in DIRNAMES:
+        readSequences = readFASTA(filename)
+        if(not (len(readSequences) % 6) == 0):
+            print("Error: sequence in file " + filename + " does not have multiple of 6 sequences")
+            print("Instead, it has " + str(len(readSequences)))
+            raise RuntimeError
+        for i in range(0, len(readSequences), 6):
+            matchedProteins.extend(patternMatch(readSequences[i: i + 6], pattern, filename))
+        
 
-print("Found " + str(len(matchedProteins)) + " that satisfy the pattern: " + PATTERN)
+    print("Found " + str(len(matchedProteins)) + " that satisfy the pattern: " + pattern)
 
-with open('output/matches.json', 'w') as outfile:
-    json.dump(matchedProteins, outfile)
+    with open('output/' + runName + '.json', 'w') as outfile:
+        json.dump(matchedProteins, outfile)
 
-print("Writing output to 'matches.csv'")
-pd.read_json("output/matches.json").to_csv("output/matches.csv")
+    print("Writing output to '" + runName + ".csv'")
+    pd.read_json("output/" + runName +".json").to_csv("output/" + runName +".csv")
+
+scanGenomes("matches", PATTERN)

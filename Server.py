@@ -1,23 +1,11 @@
 from django.conf.urls import url
 from django.http import HttpResponse
 import json
+import os
+from Downloader import downloadGenomes
+import time
 
 BASE_URL = "http://127.0.0.1:5000"
-
-# Read the matched lasso peptides
-print("Reading matches.json...")
-lassopeptides = []
-with open('output/matches.json', 'r') as storedfile:
-    lassopeptides = json.loads(storedfile.read())
-# get the set of available genomes
-genomeList = {}
-for peptide in lassopeptides:
-    if "genome" in peptide:
-        if not peptide["genome"] in genomeList:
-            genomeList[peptide["genome"]] = 1
-        else:
-            genomeList[peptide["genome"]] += 1
-print("Done reading matches.json!")
 
 
 # Server code
@@ -35,9 +23,30 @@ def home(request):
     return HttpResponse(html)  # don't use user input like that in real projects!
 
 def give_all(request):
+    runName = request.GET.get("runName")
+    # Read the matched lasso peptides
+    print("Reading output/" + runName + ".json...")
+    lassopeptides = []
+    with open('output/' + runName + '.json', 'r') as storedfile:
+        lassopeptides = json.loads(storedfile.read())
+    print("Done reading " + runName + ".json!")
     return HttpResponse(str(lassopeptides), content_type="text/plain")
 
 def get_genomes(request):
+    runName = request.GET.get("runName")
+    # get the set of available genomes
+    genomeList = {}
+    print("Reading output/" + runName + ".json...")
+    lassopeptides = []
+    with open('output/' + runName + '.json', 'r') as storedfile:
+        lassopeptides = json.loads(storedfile.read())
+    print("Done reading " + runName + ".json!")
+    for peptide in lassopeptides:
+        if "genome" in peptide:
+            if not peptide["genome"] in genomeList:
+                genomeList[peptide["genome"]] = 1
+            else:
+                genomeList[peptide["genome"]] += 1
     return HttpResponse(str(json.dumps(genomeList)), content_type="text/plain")
 
 def specificPeptides(request):
@@ -48,8 +57,15 @@ def specificPeptides(request):
     genome = request.GET.get("genome")
     minRange = request.GET.get("minRange")
     maxRange = request.GET.get("maxRange")
+    runName = request.GET.get("runName")
 
     returnList = []
+
+    print("Reading output/" + runName + ".json...")
+    lassopeptides = []
+    with open('output/' + runName + '.json', 'r') as storedfile:
+        lassopeptides = json.loads(storedfile.read())
+    print("Done reading " + runName + ".json!")
 
     for peptide in lassopeptides:
         if (
@@ -65,9 +81,57 @@ def specificPeptides(request):
     print("query returned " + str(len(returnList)))
     return HttpResponse(str(returnList), content_type='text/plain')
 
+def launch(request):
+    raw = request.GET.get("accessions")
+    pattern = request.GET.get("pattern")
+    runName = request.GET.get("runName")
+
+    t0 = time.time()
+    runStatus = {
+        "name": runName,
+        "pattern": pattern,
+        "input": str(raw)
+    }
+
+    def updateRun(message):
+        runStatus["phase"] = message
+        runStatus["totalTime"] = time.time() - t0
+        with open('runs/' + runName + '.json', 'w') as outputFile:
+            outputFile.write(json.dumps(runStatus))
+
+    updateRun("initialized")
+    accessions = raw.split(",")
+    print("downloading accessions " + str(accessions))
+    downloadGenomes(accessions)
+    updateRun("downloaded accessions")
+
+    print("translating accessions")
+    os.system("python3 Translator.py")
+    updateRun("translated accessions")
+
+    print("scanning genomes for lassos")
+    scanGenomes(runName, pattern)
+    updateRun("finished mining")
+    print("results saved to output/" + runName + ".json")
+
+    ALLDIRNAMES = []
+    for dirname in os.listdir("genomes"):
+        ## if a regular file, just add to directory
+        if (dirname.find(".") != -1):
+            ALLDIRNAMES.append("genomes/" + dirname)
+        else:
+            for filename in os.listdir("genomes/" + dirname):
+                ALLDIRNAMES.append("genomes/" + dirname + "/" + filename)
+    print("Clearing all files in genome directory")
+    for dirname in ALLDIRNAMES:
+        os.remove(dirname)
+
+    return(HttpResponse("Done with run " + runName, content_type="text/plain"))
+    
 urlpatterns = [
     url(r'^$', home),
     url(r'^getpeptides$', specificPeptides),
     url(r'^genomeList$', get_genomes),
     url(r'^allpeptides$', give_all),
+    url(r'^launchrun$', launch)
 ]
