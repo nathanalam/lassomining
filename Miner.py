@@ -361,10 +361,10 @@ def scanGenomes(runName, pattern):
     with open('output/' + "matches" + '.json', 'r') as storedfile:
         lassopeptides = json.loads(storedfile.read())
 
-    matchedProteins.extend(lassopeptides)
+    lassopeptides.extend(matchedProteins)
 
     with open('output/' + "matches" + '.json', 'w') as outfile:
-        json.dump(matchedProteins, outfile)
+        json.dump(lassopeptides, outfile)
 
     print("Writing output to '" + "matches" + ".csv'")
     pd.read_json("output/" + "matches" +".json").to_csv("output/" + "matches" +".csv")

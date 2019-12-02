@@ -124,17 +124,42 @@ def launch(request):
         os.remove(dirname)
 
     print("Reading output/" + "matches" + ".json...")
-    lassopeptides = []
     with open('output/' + "matches" + '.json', 'r') as storedfile:
         lassopeptides = json.loads(storedfile.read())
     print("Done reading " + "matches" + ".json!")
 
+    genomeList = {}
+    for peptide in lassopeptides:
+        if "genome" in peptide:
+            if not peptide["genome"] in genomeList:
+                genomeList[peptide["genome"]] = 1
+            else:
+                genomeList[peptide["genome"]] += 1
+
     return(HttpResponse("Done with run " + runName, content_type="text/plain"))
+
+def refresh(request):
+    print("Reading output/" + "matches" + ".json...")
+    with open('output/' + "matches" + '.json', 'r') as storedfile:
+        lassopeptides = json.loads(storedfile.read())
+    print("Done reading " + "matches" + ".json!")
+
+    genomeList = {}
+    for peptide in lassopeptides:
+        if "genome" in peptide:
+            if not peptide["genome"] in genomeList:
+                genomeList[peptide["genome"]] = 1
+            else:
+                genomeList[peptide["genome"]] += 1
+
+    return HttpResponse(str(lassopeptides), content_type="text/plain")
+    
     
 urlpatterns = [
     url(r'^$', home),
     url(r'^getpeptides$', specificPeptides),
     url(r'^genomeList$', get_genomes),
     url(r'^allpeptides$', give_all),
-    url(r'^launchrun$', launch)
+    url(r'^launchrun$', launch),
+    url(r'^refresh$', refresh)
 ]
