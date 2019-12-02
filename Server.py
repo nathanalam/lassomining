@@ -36,7 +36,7 @@ def home(request):
         html = str(html)
         html = html.replace("$BASE_URL$", BASE_URL)
     
-    return HttpResponse(html)  # don't use user input like that in real projects!
+    return HttpResponse(html)
 
 def give_all(request):
     return HttpResponse(str(lassopeptides), content_type="text/plain")
@@ -154,12 +154,52 @@ def refresh(request):
 
     return HttpResponse(str(lassopeptides), content_type="text/plain")
     
+def status(request):
+    html = "Error finding 'status.html'"
+    with open("static/status.html", 'r') as file:
+        html = file.read()
+        html = str(html)
+        html = html.replace("$BASE_URL$", BASE_URL)
     
+    return HttpResponse(html)
+
+def matches(request):
+    html = "Error finding 'index.html'"
+    with open("static/index.html", 'r') as file:
+        html = file.read()
+        html = str(html)
+        html = html.replace("$BASE_URL$", BASE_URL)
+    
+    return HttpResponse(html)
+
+def about(request):
+    html = "Error finding 'about.html'"
+    with open("static/about.html", 'r') as file:
+        html = file.read()
+        html = str(html)
+        html = html.replace("$BASE_URL$", BASE_URL)
+    
+    return HttpResponse(html)
+
+def getRuns(request):
+    allRuns = []
+    for dirname in os.listdir("runs"):
+        with open("runs/" + dirname, 'r') as file:
+            allRuns.append(json.loads(file.read()))
+
+    print(allRuns)
+    return HttpResponse(json.dumps(allRuns), content_type="text/plain")
+    
+
 urlpatterns = [
     url(r'^$', home),
     url(r'^getpeptides$', specificPeptides),
     url(r'^genomeList$', get_genomes),
     url(r'^allpeptides$', give_all),
     url(r'^launchrun$', launch),
-    url(r'^refresh$', refresh)
+    url(r'^refresh$', refresh),
+    url(r'^status.html$', status),
+    url(r'^matches.html$', matches),
+    url(r'^about.html$', about),
+    url(r'^getRuns$', getRuns)
 ]

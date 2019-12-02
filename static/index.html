@@ -2,37 +2,101 @@
     <head>
         <title>Lasso Miner</title>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+        <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         <script type=”text/javascript” src=”http://www.ncbi.nlm.nih.gov/projects/sviewer/js/sviewer.js”></script>
     </head>
     <body>
-        <h1>Lasso Miner</h1>
+            <nav class="navbar navbar-expand-lg navbar-light bg-light">
+                <a class="navbar-brand" href="#">Lasso Miner</a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="$BASE_URL$/status.html">Status</a>
+                    </li>
+                    <li class="nav-item active">
+                        <a class="nav-link" href="$BASE_URL$/matches.html">Matches <span class="sr-only">(current)</span></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="$BASE_URL$/about.html">About</a>
+                    </li>
+                    </ul>
+                </div>
+            </nav>
+            <div style="text-align: center;">
+                <button style="margin: 0 auto;" class="btn btn-light" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+                    V
+                  </button>
+            </div>
+              <div class="collapse" id="collapseExample">
+                    <div class="jumbotron">
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">Genome</span>
+                                </div>
+                                <input id="gen" list="genomes" name="genomes" type="text" class="form-control" placeholder="Genome Name" aria-label="Genome" aria-describedby="basic-addon1">
+                                <datalist id="genomes">
+                                    <option value="Internet Explorer">
+                                    <option value="Firefox">
+                                    <option value="Chrome">
+                                    <option value="Opera">
+                                    <option value="Safari">
+                                </datalist>
+                            </div>
+                
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">Description</span>
+                                </div>
+                                <input id="desc" name="desc" type="text" class="form-control" placeholder="Sequence description" aria-label="Description" aria-describedby="basic-addon1">
+                            </div>
+                
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">Sequence</span>
+                                </div>
+                                <input id="seq" name="seq" type="text" class="form-control" placeholder="Sequence" aria-label="Sequence" aria-describedby="basic-addon1">
+                            </div>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">Search Pattern</span>
+                                </div>
+                                <input id="pat" name="pat" type="text" class="form-control" placeholder="Pattern" aria-label="Pattern" aria-describedby="basic-addon1">
+                            </div>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">Min Position</span>
+                                </div>
+                                <input id="min" name="min" type="text" class="form-control" placeholder="Minimum Position" aria-label="MinPos" aria-describedby="basic-addon1">
+                            </div>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">Max Position</span>
+                                </div>
+                                <input id="max" name="max" type="text" class="form-control" placeholder="Maximum Position" aria-label="MaxPos" aria-describedby="basic-addon1">
+                            </div>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">Cutoff Rank</span>
+                                </div>
+                                <input id="rnk" name="rnk" type="text" class="form-control" placeholder="Rank" aria-label="Rank" aria-describedby="basic-addon1">
+                            </div>
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">Max Count</span>
+                                </div>
+                                <input id="num" name="num" type="text" class="form-control" placeholder="Max number of peptides" aria-label="Maxnum" aria-describedby="basic-addon1">
+                            </div>
+                            
+                            <button type="button" class="btn btn-primary" id="submit">Submit</button>
+                            <button type="button" class="btn btn-primary"  data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample" id="close">^</button>
+                        </div>
+              </div>
         
-        Genome: 
-        <input id="gen" type="text" list="genomes" name="genomes">
-        <datalist id="genomes">
-            <option value="Internet Explorer">
-            <option value="Firefox">
-            <option value="Chrome">
-            <option value="Opera">
-            <option value="Safari">
-        </datalist>
-        <br>
-        Description: 
-        <input id="desc" type="text"> <br>
-        Sequence: 
-        <input id="seq" type="text"> <br>
-        Search Pattern: 
-        <input id="pat" type="text"> <br>
-        Min position in range: 
-        <input id="min" type="text"> <br>
-        Max position in range: 
-        <input id="max" type="text"> <br>
-        Cutoff Rank: 
-        <input id="rnk" type="text"> <br>
-        Max number of peptides: 
-        <input id="num" type="text"> <br>
-        <button id="submit">Submit</button>
         <div id="results">
 
         </div>
@@ -40,11 +104,12 @@
             $(document).ready(function() {
                 $.get('$BASE_URL$/genomeList', {}, function(data) {
                     console.log(data);
-                    genomeList = Object.keys(JSON.parse(replaceAll(data, "\'", "\"")));
+                    genomeTable = JSON.parse(replaceAll(data, "\'", "\""));
+                    genomeList = Object.keys(genomeTable);
                     $("#genomes").empty();
                     for(var i = 0; i < genomeList.length; i++) {
                         $("#genomes").append(`
-                            <option value="` + genomeList[i] + `">
+                            <option value="` + genomeList[i] + " (" + genomeTable[genomeList[i]] + `)">
                         `);
                     }
                 });
@@ -82,16 +147,31 @@
                     }
                     for(var i = 0; i < peptides.length && peptides[i]["rank"] && i < max> cutoffR; i++) {
                         $("#results").append(`
-                            <h3>` + peptides[i].sequence + `</h3>
-                            <div id="plot` + i + `"></div>
-                            <p style="font-family:'Courier New'">` + JSON.stringify(peptides[i]) + `</p>
-                            <h4>NCBI Viewer</h4>
-                            <p>` + peptides[i].index + ` = ` + peptides[i].searchRange + `</p>
-                            <iframe id="theiframe" width="900" 
-                            src="https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=` + peptides[i].index + `&from=` + peptides[i].searchRange[0] + `&to=` + peptides[i].searchRange[1] + `" 
-                            onload="if(!window._SViFrame){_SViFrame=true;window.addEventListener('message',function(e){if(e.origin=='https://www.ncbi.nlm.nih.gov' &amp;&amp; !isNaN(e.data.h))document.getElementById(e.data.f).height=parseInt(e.data.h);});}" height="291">
-                                <p>Your browser does not support iframes.</p>
-                            </iframe>
+                        <div class="card" style="max-width: 80%; margin: 0 auto;">
+                            <div class="card-header">` + peptides[i].sequence + `</div>
+                            <div class="card-body">
+                                <a href="https://www.ncbi.nlm.nih.gov/nuccore/` + peptides[i].index + `?report=genbank&from=` + peptides[i].searchRange[0] + `&to=` + peptides[i].searchRange[1] + `"class="card-title">` + peptides[i].index + " (" + peptides[i].searchRange[0] + ".." + peptides[i].searchRange[1] +`)</a>
+                                <p class="card-text">
+                                    Genome: ` + peptides[i].genome + `<br>
+                                    Index: ` + peptides[i].index + `<br>
+                                    Range: ` + peptides[i].searchRange + `<br>
+                                    Reading Frame: ` + peptides[i].ORF + `
+                                </p>
+                                <iframe id="theiframe" width="80%" style="margin: 0 auto;" 
+                                src="https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=` + peptides[i].index + `&from=` + peptides[i].searchRange[0] + `&to=` + peptides[i].searchRange[1] + `" 
+                                onload="if(!window._SViFrame){_SViFrame=true;window.addEventListener('message',function(e){if(e.origin=='https://www.ncbi.nlm.nih.gov' &amp;&amp; !isNaN(e.data.h))document.getElementById(e.data.f).height=parseInt(e.data.h);});}" height="291">
+                                    <p>Your browser does not support iframes.</p>
+                                </iframe>
+                                <br>
+                                <br>
+                                <button class="btn btn-info" type="button" data-toggle="collapse" data-target="#collapsable` + i + `" aria-expanded="false" aria-controls="#collapsable` + i + `">Details</button>
+                                <div class="collapse" id="collapsable` + i + `">
+                                    <div id="plot` + i + `"></div>
+                                    <p style="font-family:'Courier New'">` + JSON.stringify(peptides[i]) + `</p>
+                                </div>
+                            </div>
+                        </div>
+                        <br>
                         `);
 
                         var sequence = {
