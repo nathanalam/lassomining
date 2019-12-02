@@ -123,6 +123,12 @@ def launch(request):
     for dirname in ALLDIRNAMES:
         os.remove(dirname)
 
+    print("Reading output/" + "matches" + ".json...")
+    lassopeptides = []
+    with open('output/' + "matches" + '.json', 'r') as storedfile:
+        lassopeptides = json.loads(storedfile.read())
+    print("Done reading " + "matches" + ".json!")
+
     return(HttpResponse("Done with run " + runName, content_type="text/plain"))
     
 urlpatterns = [

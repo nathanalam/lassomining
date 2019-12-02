@@ -38,7 +38,7 @@
         </div>
         <script>
             $(document).ready(function() {
-                $.get('http://127.0.0.1:5000/genomeList', {}, function(data) {
+                $.get('$BASE_URL$/genomeList', {}, function(data) {
                     console.log(data);
                     genomeList = Object.keys(JSON.parse(replaceAll(data, "\'", "\"")));
                     $("#genomes").empty();
@@ -55,7 +55,7 @@
             }
 
             $("#submit").click(function() {
-                $.get('http://127.0.0.1:5000/getpeptides', { 
+                $.get('$BASE_URL$/getpeptides', { 
                     genome: $("#gen").val(),
                     description: $("#desc").val(),
                     sequence: $("#seq").val(),
