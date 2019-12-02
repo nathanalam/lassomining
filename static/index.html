@@ -47,7 +47,14 @@
                                     <option value="Safari">
                                 </datalist>
                             </div>
-                
+                            
+                            <div class="input-group mb-3">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text" id="basic-addon1">Run Name</span>
+                                </div>
+                                <input id="run" name="run" type="text" class="form-control" placeholder="Run Name" aria-label="Run Name" aria-describedby="basic-addon1">
+                            </div>
+
                             <div class="input-group mb-3">
                                 <div class="input-group-prepend">
                                     <span class="input-group-text" id="basic-addon1">Description</span>
@@ -124,6 +131,7 @@
                     genome: $("#gen").val(),
                     description: $("#desc").val(),
                     sequence: $("#seq").val(),
+                    runName: $("#run").val(),
                     searchPattern: $("#pat").val(),
                     minRange: $("#min").val(),
                     maxRange: $("#max").val()

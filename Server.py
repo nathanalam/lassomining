@@ -6,7 +6,7 @@ from Downloader import downloadGenomes
 from Miner import scanGenomes
 import time
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://385769aa.ngrok.io"
 
 # read matches.json
 print("Reading output/" + "matches" + ".json...")
@@ -28,6 +28,7 @@ for peptide in lassopeptides:
 DEBUG = True
 SECRET_KEY = '4l0ngs3cr3tstr1ngw3lln0ts0l0ngw41tn0w1tsl0ng3n0ugh'
 ROOT_URLCONF = __name__
+ALLOWED_HOSTS = ['385769aa.ngrok.io']
 
 def home(request):
     html = "Error finding 'index.html'"
@@ -52,6 +53,7 @@ def specificPeptides(request):
     genome = request.GET.get("genome")
     minRange = request.GET.get("minRange")
     maxRange = request.GET.get("maxRange")
+    runName = request.GET.get("runName")
 
     returnList = []
 
@@ -59,6 +61,7 @@ def specificPeptides(request):
         if (
             (not description or description in peptide["description"]) and 
             (not sequence or sequence in peptide["sequence"]) and 
+            (not runName or runName in peptide["runName"]) and 
             (not searchPattern or searchPattern in peptide["searchPattern"]) and 
             (not genome or genome in peptide["genome"]) and 
             (not minRange or int(minRange) <= min(int(peptide["searchRange"][0]), int(peptide["searchRange"][1]))) and
