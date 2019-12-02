@@ -331,6 +331,7 @@ def patternMatch(sequenceORFs, pattern, filename):
 
 
 def scanGenomes(runName, pattern):
+    os.system("export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH")
     DIRNAMES = []
     for dirname in os.listdir("genomes"):
         if (dirname.find(".") != -1):
@@ -354,10 +355,10 @@ def scanGenomes(runName, pattern):
 
     print("Found " + str(len(matchedProteins)) + " that satisfy the pattern: " + pattern)
 
-    with open('output/' + runName + '.json', 'w') as outfile:
+    with open('output/' + runName + '.json', 'w+') as outfile:
         json.dump(matchedProteins, outfile)
 
     print("Writing output to '" + runName + ".csv'")
     pd.read_json("output/" + runName +".json").to_csv("output/" + runName +".csv")
 
-scanGenomes("matches", PATTERN)
+# scanGenomes("matches", PATTERN)

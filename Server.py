@@ -3,6 +3,7 @@ from django.http import HttpResponse
 import json
 import os
 from Downloader import downloadGenomes
+from Miner import scanGenomes
 import time
 
 BASE_URL = "http://127.0.0.1:5000"
@@ -92,26 +93,26 @@ def launch(request):
         "pattern": pattern,
         "input": str(raw)
     }
-
+    phases = ["initialized", "downloaded accessions", "translated accessions", "finished mining"]
     def updateRun(message):
         runStatus["phase"] = message
         runStatus["totalTime"] = time.time() - t0
-        with open('runs/' + runName + '.json', 'w') as outputFile:
+        with open('runs/' + runName + '.json', 'w+') as outputFile:
             outputFile.write(json.dumps(runStatus))
 
-    updateRun("initialized")
+    updateRun(phases[0])
     accessions = raw.split(",")
     print("downloading accessions " + str(accessions))
     downloadGenomes(accessions)
-    updateRun("downloaded accessions")
+    updateRun(phases[1])
 
     print("translating accessions")
     os.system("python3 Translator.py")
-    updateRun("translated accessions")
+    updateRun(phases[2])
 
     print("scanning genomes for lassos")
     scanGenomes(runName, pattern)
-    updateRun("finished mining")
+    updateRun(phases[3])
     print("results saved to output/" + runName + ".json")
 
     ALLDIRNAMES = []
