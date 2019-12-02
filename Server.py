@@ -6,8 +6,23 @@ from Downloader import downloadGenomes
 from Miner import scanGenomes
 import time
 
-BASE_URL = "http://127.0.0.1:5000"
+BASE_URL = "http://127.0.0.1:8000"
 
+# read matches.json
+print("Reading output/" + "matches" + ".json...")
+lassopeptides = []
+with open('output/' + "matches" + '.json', 'r') as storedfile:
+    lassopeptides = json.loads(storedfile.read())
+print("Done reading " + "matches" + ".json!")
+
+# get the set of available genomes
+genomeList = {}
+for peptide in lassopeptides:
+    if "genome" in peptide:
+        if not peptide["genome"] in genomeList:
+            genomeList[peptide["genome"]] = 1
+        else:
+            genomeList[peptide["genome"]] += 1
 
 # Server code
 DEBUG = True
@@ -24,30 +39,9 @@ def home(request):
     return HttpResponse(html)  # don't use user input like that in real projects!
 
 def give_all(request):
-    runName = request.GET.get("runName")
-    # Read the matched lasso peptides
-    print("Reading output/" + runName + ".json...")
-    lassopeptides = []
-    with open('output/' + runName + '.json', 'r') as storedfile:
-        lassopeptides = json.loads(storedfile.read())
-    print("Done reading " + runName + ".json!")
     return HttpResponse(str(lassopeptides), content_type="text/plain")
 
 def get_genomes(request):
-    runName = request.GET.get("runName")
-    # get the set of available genomes
-    genomeList = {}
-    print("Reading output/" + runName + ".json...")
-    lassopeptides = []
-    with open('output/' + runName + '.json', 'r') as storedfile:
-        lassopeptides = json.loads(storedfile.read())
-    print("Done reading " + runName + ".json!")
-    for peptide in lassopeptides:
-        if "genome" in peptide:
-            if not peptide["genome"] in genomeList:
-                genomeList[peptide["genome"]] = 1
-            else:
-                genomeList[peptide["genome"]] += 1
     return HttpResponse(str(json.dumps(genomeList)), content_type="text/plain")
 
 def specificPeptides(request):
@@ -58,15 +52,8 @@ def specificPeptides(request):
     genome = request.GET.get("genome")
     minRange = request.GET.get("minRange")
     maxRange = request.GET.get("maxRange")
-    runName = request.GET.get("runName")
 
     returnList = []
-
-    print("Reading output/" + runName + ".json...")
-    lassopeptides = []
-    with open('output/' + runName + '.json', 'r') as storedfile:
-        lassopeptides = json.loads(storedfile.read())
-    print("Done reading " + runName + ".json!")
 
     for peptide in lassopeptides:
         if (
@@ -111,10 +98,19 @@ def launch(request):
     updateRun(phases[2])
 
     print("scanning genomes for lassos")
-    scanGenomes(runName, pattern)
+    results = scanGenomes(runName, pattern)
     updateRun(phases[3])
-    print("results saved to output/" + runName + ".json")
+    print("results saved to output/" + "matches" + ".json")
 
+    runStatus["results"] = {
+        "quantity": len(results)
+    }
+
+    with open('runs/' + runName + '.json', 'w+') as outputFile:
+        outputFile.write(json.dumps(runStatus))
+
+    ## clear the genomes subdirectory
+    print("clearing the genomes directory...")
     ALLDIRNAMES = []
     for dirname in os.listdir("genomes"):
         ## if a regular file, just add to directory

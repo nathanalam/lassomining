@@ -103,8 +103,8 @@ def mastSearch(sequence, memeDirB, memeDirC):
         file.write(sequence)
         file.close()
 
-    os.system('mast -hit_list ' + memeDirB + ' tempseq.txt > tempoutB.txt')
-    os.system('mast -hit_list ' + memeDirC + ' tempseq.txt > tempoutC.txt')
+    os.system('export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH;mast -hit_list ' + memeDirB + ' tempseq.txt > tempoutB.txt')
+    os.system('export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH;mast -hit_list ' + memeDirC + ' tempseq.txt > tempoutC.txt')
 
     with open("tempoutB.txt", "r") as file:
         inlines = file.readlines()
@@ -202,7 +202,7 @@ precursor peptides matching the regular expression pattern at the top of the scr
 The function returns a list of matched proteins, which have a specific sequence, ORF, 
 nearest B/C cluster, and range within the overall sequence.
 '''
-def patternMatch(sequenceORFs, pattern, filename):
+def patternMatch(sequenceORFs, pattern, filenam, runName):
     Aproteins = []
     Bproteins = []
     Cproteins = []
@@ -322,7 +322,8 @@ def patternMatch(sequenceORFs, pattern, filename):
                     "closestCs": closestCs[0:10],
                     "ORF": ORFs[ORF],
                     "genome": descriptors[1] + " " + descriptors[2],
-                    "index": descriptors[0]
+                    "index": descriptors[0],
+                    "runName": runName
                     ## "overallString": match.string
                 })
                 
@@ -331,7 +332,7 @@ def patternMatch(sequenceORFs, pattern, filename):
 
 
 def scanGenomes(runName, pattern):
-    os.system("export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH")
+    os.system("source ~/.bash_profile")
     DIRNAMES = []
     for dirname in os.listdir("genomes"):
         if (dirname.find(".") != -1):
@@ -350,15 +351,24 @@ def scanGenomes(runName, pattern):
             print("Instead, it has " + str(len(readSequences)))
             raise RuntimeError
         for i in range(0, len(readSequences), 6):
-            matchedProteins.extend(patternMatch(readSequences[i: i + 6], pattern, filename))
+            matchedProteins.extend(patternMatch(readSequences[i: i + 6], pattern, filename, runName))
         
 
     print("Found " + str(len(matchedProteins)) + " that satisfy the pattern: " + pattern)
 
-    with open('output/' + runName + '.json', 'w+') as outfile:
+    print("Adding results to output/matches.json")
+    lassopeptides = []
+    with open('output/' + "matches" + '.json', 'r') as storedfile:
+        lassopeptides = json.loads(storedfile.read())
+
+    matchedProteins.extend(lassopeptides)
+
+    with open('output/' + "matches" + '.json', 'w') as outfile:
         json.dump(matchedProteins, outfile)
 
-    print("Writing output to '" + runName + ".csv'")
-    pd.read_json("output/" + runName +".json").to_csv("output/" + runName +".csv")
+    print("Writing output to '" + "matches" + ".csv'")
+    pd.read_json("output/" + "matches" +".json").to_csv("output/" + "matches" +".csv")
+
+    return matchedProteins
 
 # scanGenomes("matches", PATTERN)
