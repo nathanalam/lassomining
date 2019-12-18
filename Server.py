@@ -9,12 +9,13 @@ import sqlite3
 
 BASE_URL = "http://068387f8.ngrok.io"
 
-conn = sqlite3.connect('matches.db')
-
-c = conn.cursor()
-
 def readPeptides():
+    
     lassopeptides = []
+
+    conn = sqlite3.connect('matches.db')
+    c = conn.cursor()
+
     for row in c.execute("SELECT * FROM lassopeptides"):
         lassopeptides.extend( {
             "sequence": row[0],
@@ -52,6 +53,10 @@ def give_all(request):
 
 def get_genomes(request):
     genomeList = []
+
+    conn = sqlite3.connect('matches.db')
+    c = conn.cursor()
+    
     for genome in c.execute("SELECT DISTINCT genome FROM lassopeptides"):
         genomeList.append(genome)
     return HttpResponse(str(json.dumps(genomeList)), content_type="text/plain")
