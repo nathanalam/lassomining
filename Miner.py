@@ -333,6 +333,12 @@ def patternMatch(sequenceORFs, pattern, filenam, runName):
 
 
 def scanGenomes(runName, pattern):
+    conn = sqlite3.connect('matches.db')
+
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
+             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestB text, closestC text)''')
+
     os.system("source ~/.bash_profile")
     DIRNAMES = []
     for dirname in os.listdir("genomes"):
@@ -352,15 +358,32 @@ def scanGenomes(runName, pattern):
             print("Instead, it has " + str(len(readSequences)))
             raise RuntimeError
         for i in range(0, len(readSequences), 6):
-            matchedProteins.extend(patternMatch(readSequences[i: i + 6], pattern, filename, runName))
+            buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName)
+            for peptide in buffer:
+                c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                    peptide['sequence'],
+                    peptide['searchRange'][0],
+                    peptide['searchRange'][1],
+                    peptide['overallLength'],
+                    peptide['rank'],
+                    peptide['ORF'],
+                    peptide['genome'],
+                    peptide['index'],
+                    peptide['runName'],
+                    json.dumps(peptide['closestB']),
+                    json.dumps(peptide['closestC'])
+                )
+            matchedProteins.extend(buffer)
         
 
+    conn.commit()
+    conn.close()
     print("Found " + str(len(matchedProteins)) + " that satisfy the pattern: " + pattern)
 
     print("Adding results to output/matches.json")
     lassopeptides = []
-    with open('output/' + "matches" + '.json', 'r') as storedfile:
-        lassopeptides = json.loads(storedfile.read())
+    # with open('output/' + "matches" + '.json', 'r') as storedfile:
+    #     lassopeptides = json.loads(storedfile.read())
 
     lassopeptides.extend(matchedProteins)
 
