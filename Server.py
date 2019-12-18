@@ -5,24 +5,30 @@ import os
 from Downloader import downloadGenomes
 from Miner import scanGenomes
 import time
+import sqlite3
 
 BASE_URL = "http://d33bb825.ngrok.io"
 
-# read matches.json
-print("Reading output/" + "matches" + ".json...")
-lassopeptides = []
-with open('output/' + "matches" + '.json', 'r') as storedfile:
-    lassopeptides = json.loads(storedfile.read())
-print("Done reading " + "matches" + ".json!")
+c = conn.cursor()
 
-# get the set of available genomes
-genomeList = {}
-for peptide in lassopeptides:
-    if "genome" in peptide:
-        if not peptide["genome"] in genomeList:
-            genomeList[peptide["genome"]] = 1
-        else:
-            genomeList[peptide["genome"]] += 1
+def readPeptides():
+    lassopeptides = []
+    for row in c.execute("SELECT * FROM lassopeptides"):
+        lassopeptides.extend(
+            "sequence": row[0],
+            "start": row[1],
+            "end": row[2],
+            "overallLength": row[3],
+            "rank": row[4],
+            "ORF": row[5],
+            "genome": row[6],
+            "index": row[7],
+            "runName": row[8],
+            "closestB": row[9],
+            "closestC": row[10],
+        )
+
+    return lassopeptides
 
 # Server code
 DEBUG = True
@@ -40,9 +46,12 @@ def home(request):
     return HttpResponse(html)
 
 def give_all(request):
-    return HttpResponse(str(lassopeptides), content_type="text/plain")
+    return HttpResponse(str(readPeptides()), content_type="text/plain")
 
 def get_genomes(request):
+    genomeList = []
+    for genome in c.execute("SELECT DISTINCT genome FROM lassopeptides"):
+        genomeList.append(genome)
     return HttpResponse(str(json.dumps(genomeList)), content_type="text/plain")
 
 def specificPeptides(request):
@@ -56,6 +65,8 @@ def specificPeptides(request):
     runName = request.GET.get("runName")
 
     returnList = []
+
+    lassopeptides = readPeptides()
 
     for peptide in lassopeptides:
         if (
@@ -77,29 +88,37 @@ def launch(request):
     pattern = request.GET.get("pattern")
     runName = request.GET.get("runName")
 
+    # start a timer
     t0 = time.time()
+
+    # store meta data about the particular run
     runStatus = {
         "name": runName,
         "pattern": pattern,
         "input": str(raw)
     }
     phases = ["initialized", "downloaded accessions", "translated accessions", "finished mining"]
+
+    # define a function to progressively update the current status of the run
     def updateRun(message):
         runStatus["phase"] = message
         runStatus["totalTime"] = time.time() - t0
         with open('runs/' + runName + '.json', 'w+') as outputFile:
             outputFile.write(json.dumps(runStatus))
 
+    # download accession number genomes
     updateRun(phases[0])
     accessions = raw.split(",")
     print("downloading accessions " + str(accessions))
     downloadGenomes(accessions)
     updateRun(phases[1])
 
+    # launch translation of nucleic acids to amino acids
     print("translating accessions")
     os.system("python3 Translator.py")
     updateRun(phases[2])
 
+    # launch the actual mining of the translated genomes
     print("scanning genomes for lassos")
     results = scanGenomes(runName, pattern)
     updateRun(phases[3])
@@ -109,6 +128,7 @@ def launch(request):
         "quantity": len(results)
     }
 
+    # record the runstatus one final time outside of helper function
     with open('runs/' + runName + '.json', 'w+') as outputFile:
         outputFile.write(json.dumps(runStatus))
 
@@ -126,36 +146,8 @@ def launch(request):
     for dirname in ALLDIRNAMES:
         os.remove(dirname)
 
-    print("Reading output/" + "matches" + ".json...")
-    with open('output/' + "matches" + '.json', 'r') as storedfile:
-        lassopeptides = json.loads(storedfile.read())
-    print("Done reading " + "matches" + ".json!")
-
-    genomeList = {}
-    for peptide in lassopeptides:
-        if "genome" in peptide:
-            if not peptide["genome"] in genomeList:
-                genomeList[peptide["genome"]] = 1
-            else:
-                genomeList[peptide["genome"]] += 1
-
     return(HttpResponse("Done with run " + runName, content_type="text/plain"))
 
-def refresh(request):
-    print("Reading output/" + "matches" + ".json...")
-    with open('output/' + "matches" + '.json', 'r') as storedfile:
-        lassopeptides = json.loads(storedfile.read())
-    print("Done reading " + "matches" + ".json!")
-
-    genomeList = {}
-    for peptide in lassopeptides:
-        if "genome" in peptide:
-            if not peptide["genome"] in genomeList:
-                genomeList[peptide["genome"]] = 1
-            else:
-                genomeList[peptide["genome"]] += 1
-
-    return HttpResponse(str(lassopeptides), content_type="text/plain")
     
 def status(request):
     html = "Error finding 'status.html'"
@@ -200,7 +192,6 @@ urlpatterns = [
     url(r'^genomeList$', get_genomes),
     url(r'^allpeptides$', give_all),
     url(r'^launchrun$', launch),
-    url(r'^refresh$', refresh),
     url(r'^status.html$', status),
     url(r'^matches.html$', matches),
     url(r'^about.html$', about),
