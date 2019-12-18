@@ -9,6 +9,8 @@ import sqlite3
 
 BASE_URL = "http://127.0.0.1:8000"
 
+conn = sqlite3.connect('matches.db')
+
 c = conn.cursor()
 
 def readPeptides():
