@@ -7,7 +7,7 @@ from Miner import scanGenomes
 import time
 import sqlite3
 
-BASE_URL = "http://d33bb825.ngrok.io"
+BASE_URL = "http://068387f8.ngrok.io"
 
 conn = sqlite3.connect('matches.db')
 
@@ -102,6 +102,8 @@ def launch(request):
     phases = ["initialized", "downloaded accessions", "translated accessions", "finished mining"]
 
     # define a function to progressively update the current status of the run
+    if not os.path.exists("runs/" + runName + ".json"):
+        os.mknod("runs/" + runName + ".json")
     def updateRun(message):
         runStatus["phase"] = message
         runStatus["totalTime"] = time.time() - t0

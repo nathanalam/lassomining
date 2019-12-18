@@ -370,8 +370,8 @@ def scanGenomes(runName, pattern):
                     peptide['genome'],
                     peptide['index'],
                     peptide['runName'],
-                    json.dumps(peptide['closestB']),
-                    json.dumps(peptide['closestC'])
+                    json.dumps(str(peptide['closestB'])),
+                    json.dumps(str(peptide['closestC']))
                 )
             matchedProteins.extend(buffer)
         
