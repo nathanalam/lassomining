@@ -10,6 +10,7 @@ import os
 import json
 import math
 import pandas as pd
+import sqlite3
 
 PATTERN = 'M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*'
 # PATTERN = 'CC.CGCCC...TGGC.'
