@@ -14,7 +14,7 @@ c = conn.cursor()
 def readPeptides():
     lassopeptides = []
     for row in c.execute("SELECT * FROM lassopeptides"):
-        lassopeptides.extend(
+        lassopeptides.extend( {
             "sequence": row[0],
             "start": row[1],
             "end": row[2],
@@ -26,7 +26,7 @@ def readPeptides():
             "runName": row[8],
             "closestB": row[9],
             "closestC": row[10],
-        )
+        })
 
     return lassopeptides
 
