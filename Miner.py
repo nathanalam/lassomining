@@ -361,7 +361,7 @@ def scanGenomes(runName, pattern):
             buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName)
             for peptide in buffer:
                 c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                    peptide['sequence'],
+                    [peptide['sequence'],
                     peptide['searchRange'][0],
                     peptide['searchRange'][1],
                     peptide['overallLength'],
@@ -371,7 +371,7 @@ def scanGenomes(runName, pattern):
                     peptide['index'],
                     peptide['runName'],
                     json.dumps(str(peptide['closestB'])),
-                    json.dumps(str(peptide['closestC']))
+                    json.dumps(str(peptide['closestC']))]
                 )
             matchedProteins.extend(buffer)
         
