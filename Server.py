@@ -7,16 +7,15 @@ from Miner import scanGenomes
 import time
 import sqlite3
 
-BASE_URL = "http://068387f8.ngrok.io"
-
-conn = sqlite3.connect('matches.db')
-
-c = conn.cursor()
+BASE_URL = "http://e908db58.ngrok.io"
 
 def readPeptides():
     lassopeptides = []
+
+    conn = sqlite3.connect('matches.db')
+    c = conn.cursor()
     for row in c.execute("SELECT * FROM lassopeptides"):
-        lassopeptides.extend( {
+        lassopeptides.append( {
             "sequence": row[0],
             "start": row[1],
             "end": row[2],
@@ -29,14 +28,14 @@ def readPeptides():
             "closestB": row[9],
             "closestC": row[10],
         })
-
+    c.close()
     return lassopeptides
 
 # Server code
 DEBUG = True
 SECRET_KEY = '4l0ngs3cr3tstr1ngw3lln0ts0l0ngw41tn0w1tsl0ng3n0ugh'
 ROOT_URLCONF = __name__
-ALLOWED_HOSTS = [BASE_URL]
+ALLOWED_HOSTS = [BASE_URL[7:]]
 
 def home(request):
     html = "Error finding 'index.html'"
@@ -52,8 +51,11 @@ def give_all(request):
 
 def get_genomes(request):
     genomeList = []
+    conn = sqlite3.connect('matches.db')
+    c = conn.cursor()
     for genome in c.execute("SELECT DISTINCT genome FROM lassopeptides"):
         genomeList.append(genome)
+    c.close()
     return HttpResponse(str(json.dumps(genomeList)), content_type="text/plain")
 
 def specificPeptides(request):
