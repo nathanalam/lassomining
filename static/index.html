@@ -40,11 +40,7 @@
                                 </div>
                                 <input id="gen" list="genomes" name="genomes" type="text" class="form-control" placeholder="Genome Name" aria-label="Genome" aria-describedby="basic-addon1">
                                 <datalist id="genomes">
-                                    <option value="Internet Explorer">
-                                    <option value="Firefox">
-                                    <option value="Chrome">
-                                    <option value="Opera">
-                                    <option value="Safari">
+                                    <option value="No genomes found">
                                 </datalist>
                             </div>
                             
@@ -54,25 +50,12 @@
                                 </div>
                                 <input id="run" name="run" type="text" class="form-control" placeholder="Run Name" aria-label="Run Name" aria-describedby="basic-addon1">
                             </div>
-
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Description</span>
-                                </div>
-                                <input id="desc" name="desc" type="text" class="form-control" placeholder="Sequence description" aria-label="Description" aria-describedby="basic-addon1">
-                            </div>
                 
                             <div class="input-group mb-3">
                                 <div class="input-group-prepend">
                                     <span class="input-group-text" id="basic-addon1">Sequence</span>
                                 </div>
                                 <input id="seq" name="seq" type="text" class="form-control" placeholder="Sequence" aria-label="Sequence" aria-describedby="basic-addon1">
-                            </div>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Search Pattern</span>
-                                </div>
-                                <input id="pat" name="pat" type="text" class="form-control" placeholder="Pattern" aria-label="Pattern" aria-describedby="basic-addon1">
                             </div>
                             <div class="input-group mb-3">
                                 <div class="input-group-prepend">
@@ -85,12 +68,6 @@
                                     <span class="input-group-text" id="basic-addon1">Max Position</span>
                                 </div>
                                 <input id="max" name="max" type="text" class="form-control" placeholder="Maximum Position" aria-label="MaxPos" aria-describedby="basic-addon1">
-                            </div>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Cutoff Rank</span>
-                                </div>
-                                <input id="rnk" name="rnk" type="text" class="form-control" placeholder="Rank" aria-label="Rank" aria-describedby="basic-addon1">
                             </div>
                             <div class="input-group mb-3">
                                 <div class="input-group-prepend">
@@ -110,13 +87,12 @@
         <script>
             $(document).ready(function() {
                 $.get('$BASE_URL$/genomeList', {}, function(data) {
-                    console.log(data);
-                    genomeTable = JSON.parse(replaceAll(data, "\'", "\""));
-                    genomeList = Object.keys(genomeTable);
+                    console.log("genomes: " + data);
+                    genomeList = JSON.parse(replaceAll(data, "\'", "\""));
                     $("#genomes").empty();
                     for(var i = 0; i < genomeList.length; i++) {
                         $("#genomes").append(`
-                            <option value="` + genomeList[i] + " (" + genomeTable[genomeList[i]] + `)">
+                            <option value="` + genomeList[i][0] + `">
                         `);
                     }
                 });
@@ -129,12 +105,12 @@
             $("#submit").click(function() {
                 $.get('$BASE_URL$/getpeptides', { 
                     genome: $("#gen").val(),
-                    description: $("#desc").val(),
                     sequence: $("#seq").val(),
                     runName: $("#run").val(),
                     searchPattern: $("#pat").val(),
                     minRange: $("#min").val(),
-                    maxRange: $("#max").val()
+                    maxRange: $("#max").val(),
+                    maxNum: $('#num').val()
                 }, function(data) {
                     console.log(data);
                     peptides = JSON.parse(replaceAll(data, "\'", "\""))
@@ -143,17 +119,7 @@
                     });
                     $("#results").empty();
 
-                    var cutoffR = 0;
-                    ncutoffR = parseFloat($("#rnk").val());
-                    if(ncutoffR > cutoffR) {
-                        cutoffR = ncutoffR
-                    }
-                    max = Number.MAX_SAFE_INTEGER;
-                    nmax = parseInt($("#num").val());
-                    if(nmax < max) {
-                        max = nmax;
-                    }
-                    for(var i = 0; i < peptides.length && peptides[i]["rank"] && i < max> cutoffR; i++) {
+                    for(var i = 0; i < peptides.length && peptides[i]["rank"]; i++) {
                         $("#results").append(`
                         <div class="card" style="max-width: 80%; margin: 0 auto;">
                             <div class="card-header">` + peptides[i].sequence + `</div>

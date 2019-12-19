@@ -72,7 +72,26 @@
                     for(var i = 0; i < runList.length; i++) {
                         $("#canvas").append(`
                             <p>` + JSON.stringify(runList[i]) + `</p>
+                            <div class="card" style="max-width: 80%; margin: 0 auto;">
+                                <div class="card-header">` + runList[i].name + `</div>
+                                <div class="card-body">
+                                    <p class="card-text">
+                                        Pattern: ` + runList[i].pattern + `<br>
+                                        Input Accessions: ` + runList[i].input + `<br>
+                                        Phase: ` + runList[i].phase + `<br>
+                                        Time Elapsed: ` + runList[i].totalTime + `
+                                    </p>
+                                    <div id="plot` + i + `"></div>
+                                </div>
+                            </div>
                         `);
+
+                        var trace = {
+                            x: runList[i].ranks,
+                            type: 'histogram',
+                        };
+                        var data = [trace];
+                        Plotly.newPlot('plot' + i, data);
                     }
                 });
             });

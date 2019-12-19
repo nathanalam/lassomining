@@ -9,13 +9,27 @@ import sqlite3
 
 BASE_URL = "http://e908db58.ngrok.io"
 
-def readPeptides():
+# Server code
+DEBUG = True
+SECRET_KEY = '4l0ngs3cr3tstr1ngw3lln0ts0l0ngw41tn0w1tsl0ng3n0ugh'
+ROOT_URLCONF = __name__
+ALLOWED_HOSTS = [BASE_URL[7:]]
+
+def readPeptides(sequence, genome, start, end, runName, maxNum):
     
     lassopeptides = []
 
     conn = sqlite3.connect('matches.db')
     c = conn.cursor()
-    for row in c.execute("SELECT * FROM lassopeptides"):
+    # get all lasso peptides, sorted by rank
+    for row in c.execute("""SELECT * FROM lassopeptides WHERE
+    sequence LIKE %""" + sequence + """% AND
+    genome LIKE %""" + genome + """% AND
+    start >= %""" + start + """% AND
+    end <= %""" + end + """% AND
+    runName LIKE %""" + runName + """% AND
+    ORDER BY 5 ASC 
+    LIMIT """ + maxNum):
         lassopeptides.append( {
             "sequence": row[0],
             "start": row[1],
@@ -31,12 +45,6 @@ def readPeptides():
         })
     c.close()
     return lassopeptides
-
-# Server code
-DEBUG = True
-SECRET_KEY = '4l0ngs3cr3tstr1ngw3lln0ts0l0ngw41tn0w1tsl0ng3n0ugh'
-ROOT_URLCONF = __name__
-ALLOWED_HOSTS = [BASE_URL[7:]]
 
 def home(request):
     html = "Error finding 'index.html'"
@@ -61,29 +69,14 @@ def get_genomes(request):
 
 def specificPeptides(request):
     # given the search parameters, return only the peptides that fit the rank
-    description = request.GET.get("description")
     sequence = request.GET.get("sequence")
-    searchPattern = request.GET.get("searchPattern")
     genome = request.GET.get("genome")
-    minRange = request.GET.get("minRange")
-    maxRange = request.GET.get("maxRange")
+    start = request.GET.get("minRange")
+    end = request.GET.get("maxRange")
     runName = request.GET.get("runName")
+    maxNum = request.GET.get("maxNum")
 
-    returnList = []
-
-    lassopeptides = readPeptides()
-
-    for peptide in lassopeptides:
-        if (
-            (not description or description in peptide["description"]) and 
-            (not sequence or sequence in peptide["sequence"]) and 
-            (not runName or runName in peptide["runName"]) and 
-            (not searchPattern or searchPattern in peptide["searchPattern"]) and 
-            (not genome or genome in peptide["genome"]) and 
-            (not minRange or int(minRange) <= min(int(peptide["searchRange"][0]), int(peptide["searchRange"][1]))) and
-            (not maxRange or int(maxRange) >= max(int(peptide["searchRange"][0]), int(peptide["searchRange"][1])))
-        ):
-            returnList.append(peptide)
+    returnList = readPeptides(sequence, genome, start, end, runName, maxNum)
 
     print("query returned " + str(len(returnList)))
     return HttpResponse(str(returnList), content_type='text/plain')
@@ -187,9 +180,18 @@ def getRuns(request):
     allRuns = []
     for dirname in os.listdir("runs"):
         with open("runs/" + dirname, 'r') as file:
-            allRuns.append(json.loads(file.read()))
+            particularRun = json.loads(file.read())
+            ranks = []
 
-    print(allRuns)
+            conn = sqlite3.connect('matches.db')
+            c = conn.cursor()
+            # get all lasso peptides, sorted by rank
+            for row in c.execute("SELECT rank FROM lassopeptides WHERE runName LIKE '" + particularRun["name"] + "%' ORDER BY 5 ASC"):
+                ranks.append(row[0])
+            c.close()
+            particularRun["ranks"] = ranks
+            allRuns.append(particularRun)
+
     return HttpResponse(json.dumps(allRuns), content_type="text/plain")
     
 
