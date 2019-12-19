@@ -22,14 +22,16 @@ def readPeptides(sequence, genome, start, end, runName, maxNum):
     conn = sqlite3.connect('matches.db')
     c = conn.cursor()
     # get all lasso peptides, sorted by rank
-    for row in c.execute("""SELECT * FROM lassopeptides WHERE
-    sequence LIKE %""" + sequence + """% AND
-    genome LIKE %""" + genome + """% AND
-    start >= %""" + start + """% AND
-    end <= %""" + end + """% AND
-    runName LIKE %""" + runName + """% AND
+    selectionString = """SELECT * FROM lassopeptides WHERE
+    sequence LIKE '%""" + sequence + """%' AND
+    genome LIKE '%""" + genome + """%' AND
+    start >= """ + str(start) + """ AND
+    end <= """ + str(end) + """ AND
+    runName LIKE '%""" + runName + """%'
     ORDER BY 5 ASC 
-    LIMIT """ + maxNum):
+    LIMIT """ + str(maxNum)
+    print(selectionString)
+    for row in c.execute(selectionString):
         lassopeptides.append( {
             "sequence": row[0],
             "start": row[1],
@@ -40,8 +42,8 @@ def readPeptides(sequence, genome, start, end, runName, maxNum):
             "genome": row[6],
             "index": row[7],
             "runName": row[8],
-            "closestB": row[9],
-            "closestC": row[10],
+            "closestBs": json.loads(row[9]),
+            "closestCs": json.loads(row[10]),
         })
     c.close()
     return lassopeptides
@@ -76,10 +78,16 @@ def specificPeptides(request):
     runName = request.GET.get("runName")
     maxNum = request.GET.get("maxNum")
 
+    if not start:
+        start = 0
+
+    if not end:
+        end = 1000000000000000
+
     returnList = readPeptides(sequence, genome, start, end, runName, maxNum)
 
     print("query returned " + str(len(returnList)))
-    return HttpResponse(str(returnList), content_type='text/plain')
+    return HttpResponse(json.dumps(returnList), content_type='text/json')
 
 def launch(request):
     raw = request.GET.get("accessions")
@@ -186,7 +194,7 @@ def getRuns(request):
             conn = sqlite3.connect('matches.db')
             c = conn.cursor()
             # get all lasso peptides, sorted by rank
-            for row in c.execute("SELECT rank FROM lassopeptides WHERE runName LIKE '" + particularRun["name"] + "%' ORDER BY 5 ASC"):
+            for row in c.execute("SELECT rank FROM lassopeptides WHERE runName LIKE '" + particularRun["name"] + "%' ORDER BY 1 ASC"):
                 ranks.append(row[0])
             c.close()
             particularRun["ranks"] = ranks

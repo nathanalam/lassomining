@@ -29,7 +29,7 @@
             </nav>
                 <div style="text-align: center;">
                     <button style="margin: 0 auto;" class="btn btn-light" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
-                        V
+                        Launch
                     </button>
                 </div>
                     <div class="collapse" id="collapseExample">
@@ -71,7 +71,6 @@
                     $("#canvas").empty();
                     for(var i = 0; i < runList.length; i++) {
                         $("#canvas").append(`
-                            <p>` + JSON.stringify(runList[i]) + `</p>
                             <div class="card" style="max-width: 80%; margin: 0 auto;">
                                 <div class="card-header">` + runList[i].name + `</div>
                                 <div class="card-body">

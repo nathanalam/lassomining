@@ -337,7 +337,7 @@ def scanGenomes(runName, pattern):
 
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
-             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestB text, closestC text)''')
+             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestBs text, closestCs text)''')
 
     os.system("source ~/.bash_profile")
     DIRNAMES = []
@@ -370,8 +370,8 @@ def scanGenomes(runName, pattern):
                     peptide['genome'],
                     peptide['index'],
                     peptide['runName'],
-                    json.dumps(str(peptide['closestB'])),
-                    json.dumps(str(peptide['closestC']))]
+                    json.dumps(str(peptide['closestBs'])),
+                    json.dumps(str(peptide['closestCs']))]
                 )
             matchedProteins.extend(buffer)
         
