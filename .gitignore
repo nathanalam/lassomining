@@ -16,6 +16,7 @@ pyvenv.cfg
 *.faa
 *.json
 *.csv
+*.db
 genomes/*
 
 # C extensions

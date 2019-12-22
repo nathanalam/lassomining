@@ -29,7 +29,7 @@
             </nav>
             <div style="text-align: center;">
                 <button style="margin: 0 auto;" class="btn btn-light" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
-                    V
+                    Search
                   </button>
             </div>
               <div class="collapse" id="collapseExample">
@@ -40,11 +40,7 @@
                                 </div>
                                 <input id="gen" list="genomes" name="genomes" type="text" class="form-control" placeholder="Genome Name" aria-label="Genome" aria-describedby="basic-addon1">
                                 <datalist id="genomes">
-                                    <option value="Internet Explorer">
-                                    <option value="Firefox">
-                                    <option value="Chrome">
-                                    <option value="Opera">
-                                    <option value="Safari">
+                                    <option value="No genomes found">
                                 </datalist>
                             </div>
                             
@@ -54,25 +50,12 @@
                                 </div>
                                 <input id="run" name="run" type="text" class="form-control" placeholder="Run Name" aria-label="Run Name" aria-describedby="basic-addon1">
                             </div>
-
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Description</span>
-                                </div>
-                                <input id="desc" name="desc" type="text" class="form-control" placeholder="Sequence description" aria-label="Description" aria-describedby="basic-addon1">
-                            </div>
                 
                             <div class="input-group mb-3">
                                 <div class="input-group-prepend">
                                     <span class="input-group-text" id="basic-addon1">Sequence</span>
                                 </div>
                                 <input id="seq" name="seq" type="text" class="form-control" placeholder="Sequence" aria-label="Sequence" aria-describedby="basic-addon1">
-                            </div>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Search Pattern</span>
-                                </div>
-                                <input id="pat" name="pat" type="text" class="form-control" placeholder="Pattern" aria-label="Pattern" aria-describedby="basic-addon1">
                             </div>
                             <div class="input-group mb-3">
                                 <div class="input-group-prepend">
@@ -85,12 +68,6 @@
                                     <span class="input-group-text" id="basic-addon1">Max Position</span>
                                 </div>
                                 <input id="max" name="max" type="text" class="form-control" placeholder="Maximum Position" aria-label="MaxPos" aria-describedby="basic-addon1">
-                            </div>
-                            <div class="input-group mb-3">
-                                <div class="input-group-prepend">
-                                    <span class="input-group-text" id="basic-addon1">Cutoff Rank</span>
-                                </div>
-                                <input id="rnk" name="rnk" type="text" class="form-control" placeholder="Rank" aria-label="Rank" aria-describedby="basic-addon1">
                             </div>
                             <div class="input-group mb-3">
                                 <div class="input-group-prepend">
@@ -110,13 +87,12 @@
         <script>
             $(document).ready(function() {
                 $.get('$BASE_URL$/genomeList', {}, function(data) {
-                    console.log(data);
-                    genomeTable = JSON.parse(replaceAll(data, "\'", "\""));
-                    genomeList = Object.keys(genomeTable);
+                    console.log("genomes: " + data);
+                    genomeList = JSON.parse(replaceAll(data, "\'", "\""));
                     $("#genomes").empty();
                     for(var i = 0; i < genomeList.length; i++) {
                         $("#genomes").append(`
-                            <option value="` + genomeList[i] + " (" + genomeTable[genomeList[i]] + `)">
+                            <option value="` + genomeList[i][0] + `">
                         `);
                     }
                 });
@@ -129,44 +105,35 @@
             $("#submit").click(function() {
                 $.get('$BASE_URL$/getpeptides', { 
                     genome: $("#gen").val(),
-                    description: $("#desc").val(),
                     sequence: $("#seq").val(),
                     runName: $("#run").val(),
                     searchPattern: $("#pat").val(),
                     minRange: $("#min").val(),
-                    maxRange: $("#max").val()
+                    maxRange: $("#max").val(),
+                    maxNum: $('#num').val()
                 }, function(data) {
                     console.log(data);
-                    peptides = JSON.parse(replaceAll(data, "\'", "\""))
+                    peptides = data;
                     peptides.sort(function(a, b) {
                         return a["rank"] - b["rank"]
                     });
                     $("#results").empty();
 
-                    var cutoffR = 0;
-                    ncutoffR = parseFloat($("#rnk").val());
-                    if(ncutoffR > cutoffR) {
-                        cutoffR = ncutoffR
-                    }
-                    max = Number.MAX_SAFE_INTEGER;
-                    nmax = parseInt($("#num").val());
-                    if(nmax < max) {
-                        max = nmax;
-                    }
-                    for(var i = 0; i < peptides.length && peptides[i]["rank"] && i < max> cutoffR; i++) {
+                    for(var i = 0; i < peptides.length && peptides[i]["rank"]; i++) {
                         $("#results").append(`
                         <div class="card" style="max-width: 80%; margin: 0 auto;">
                             <div class="card-header">` + peptides[i].sequence + `</div>
                             <div class="card-body">
-                                <a href="https://www.ncbi.nlm.nih.gov/nuccore/` + peptides[i].index + `?report=genbank&from=` + peptides[i].searchRange[0] + `&to=` + peptides[i].searchRange[1] + `"class="card-title">` + peptides[i].index + " (" + peptides[i].searchRange[0] + ".." + peptides[i].searchRange[1] +`)</a>
+                                <a href="https://www.ncbi.nlm.nih.gov/nuccore/` + peptides[i].index + `?report=genbank&from=` + peptides[i].start + `&to=` + peptides[i].end + `"class="card-title">` + peptides[i].index + " (" + peptides[i].start + ".." + peptides[i].end +`)</a>
                                 <p class="card-text">
+                                    Rank: ` + peptides[i].rank + `<br>
                                     Genome: ` + peptides[i].genome + `<br>
                                     Index: ` + peptides[i].index + `<br>
-                                    Range: ` + peptides[i].searchRange + `<br>
+                                    Range: ` + peptides[i].start + ' - ' + peptides[i].end +  `<br>
                                     Reading Frame: ` + peptides[i].ORF + `
                                 </p>
                                 <iframe id="theiframe" width="80%" style="margin: 0 auto;" 
-                                src="https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=` + peptides[i].index + `&from=` + peptides[i].searchRange[0] + `&to=` + peptides[i].searchRange[1] + `" 
+                                src="https://www.ncbi.nlm.nih.gov/projects/sviewer/embedded_iframe.html?iframe=theiframe&embedded=true&id=` + peptides[i].index + `&from=` + peptides[i].start + `&to=` + peptides[i].end + `" 
                                 onload="if(!window._SViFrame){_SViFrame=true;window.addEventListener('message',function(e){if(e.origin=='https://www.ncbi.nlm.nih.gov' &amp;&amp; !isNaN(e.data.h))document.getElementById(e.data.f).height=parseInt(e.data.h);});}" height="291">
                                     <p>Your browser does not support iframes.</p>
                                 </iframe>
@@ -190,32 +157,19 @@
                         }
 
                         var Aprot = {
-                            x: [peptides[i].searchRange[0], peptides[i].searchRange[1]],
+                            x: [peptides[i].start, peptides[i].end],
                             y: [3, 3],
                             type: 'line',
                             name: "A"
                         };
 
-                        var Bprot = {
-                            x: [peptides[i].closestB["start"], peptides[i].closestB["end"]],
-                            y: [5, 5],
-                            type: 'line',
-                            name: "B"
-                        };
 
-                        var Cprot = {
-                            x: [peptides[i].closestC["start"], peptides[i].closestC["end"]],
-                            y: [7, 7],
-                            type: 'line',
-                            name: "C"
-                        };
-
-                        
+                        closestBs = JSON.parse(replaceAll(peptides[i].closestBs, "\'", "\""));
 
                         var otherBprots = [];
-                        for(var e = 0; e < peptides[i].closestBs.length; e++) {
+                        for(var e = 0; e < closestBs.length; e++) {
                             var newProt = {
-                                x: [peptides[i].closestBs[e]["start"], peptides[i].closestBs[e]["end"]],
+                                x: [closestBs[e]["start"], closestBs[e]["end"]],
                                 y: [9, 9],
                                 type: 'line',
                                 name: "B" + e
@@ -223,10 +177,12 @@
                             otherBprots.push(newProt);
                         }
 
+                        closestCs = JSON.parse(replaceAll(peptides[i].closestCs, "\'", "\""));
+
                         var otherCprots = [];
-                        for(var e = 0; e < peptides[i].closestCs.length; e++) {
+                        for(var e = 0; e < closestCs.length; e++) {
                             var newProt = {
-                                x: [peptides[i].closestCs[e]["start"], peptides[i].closestCs[e]["end"]],
+                                x: [closestCs[e]["start"], closestCs[e]["end"]],
                                 y: [9, 9],
                                 type: 'line',
                                 name: "C" + e
@@ -234,13 +190,13 @@
                             otherCprots.push(newProt);
                         }
 
-                        var plotdata = [sequence, Aprot, Bprot, Cprot];
+                        var plotdata = [sequence, Aprot];
                         otherBprots.forEach(element => plotdata.push(element));
                         otherCprots.forEach(element => plotdata.push(element));
 
                         Plotly.newPlot('plot' + i, plotdata, {
                                 xaxis: {
-                                    range: [peptides[i].searchRange[0] - 20, peptides[i].searchRange[1] + 20]
+                                    range: [peptides[i].start - 20, peptides[i].end + 20]
                                 },
                                 yaxis: {
                                     range: [0, 10]
