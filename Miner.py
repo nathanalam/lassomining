@@ -274,6 +274,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName):
                             # print(prot)
                             continue
                         diffsquared = (prot["start"] - start) ** 2
+                        diffsquared = diffsquared * prot["p-value"]
                         if diffsquared < closest:
                             closestB = prot
                             closest = diffsquared
@@ -293,7 +294,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName):
                             # print(prot)
                             continue
                         diffsquared = (prot["start"] - start) ** 2
-
+                        diffsquared = diffsquared * prot["p-value"]
                         if diffsquared < closest:
                             closestC = prot
                             closest = diffsquared
