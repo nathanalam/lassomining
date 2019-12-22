@@ -184,6 +184,15 @@ def about(request):
     
     return HttpResponse(html)
 
+def favicon(request):
+    html = "Error finding 'favicon.ico'"
+    with open("static/about.html", 'r') as file:
+        html = file.read()
+        html = str(html)
+        html = html.replace("$BASE_URL$", BASE_URL)
+    
+    return HttpResponse(html)
+
 def getRuns(request):
     allRuns = []
     for dirname in os.listdir("runs"):
@@ -202,6 +211,8 @@ def getRuns(request):
 
     return HttpResponse(json.dumps(allRuns), content_type="text/plain")
     
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'),]
 
 urlpatterns = [
     url(r'^$', home),
@@ -212,5 +223,6 @@ urlpatterns = [
     url(r'^status.html$', status),
     url(r'^matches.html$', matches),
     url(r'^about.html$', about),
+    url(r'^favicon.ico$', favicon),
     url(r'^getRuns$', getRuns)
 ]
