@@ -7,7 +7,7 @@ from Miner import scanGenomes
 import time
 import sqlite3
 
-BASE_URL = "http://bca0fa6d.ngrok.io"
+BASE_URL = "http://50.116.48.39"
 
 # Server code
 DEBUG = True

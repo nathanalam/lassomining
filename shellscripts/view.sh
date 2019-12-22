@@ -2,4 +2,4 @@
 
 source bin/activate
 
-django-admin runserver --pythonpath="." --settings=Server 8000
+django-admin runserver --pythonpath="." --settings=Server 50.116.48.39:8080
