@@ -1,4 +1,5 @@
 from django.conf.urls import url
+from django.conf.urls.static import static
 from django.http import HttpResponse
 import json
 import os
@@ -184,13 +185,6 @@ def about(request):
     
     return HttpResponse(html)
 
-def favicon(request):
-    icon = "Error finding 'favicon.ico'"
-    with open("static/favicon.ico", 'rb') as file:
-        icon = file.read()
-    
-    return HttpResponse(icon, mimetype="image/png")
-
 def getRuns(request):
     allRuns = []
     for dirname in os.listdir("runs"):
@@ -219,6 +213,6 @@ urlpatterns = [
     url(r'^status.html$', status),
     url(r'^matches.html$', matches),
     url(r'^about.html$', about),
-    url(r'^favicon.ico$', favicon),
+    static(r'^favicon.ico$', document_root='static/favicon.ico'),
     url(r'^getRuns$', getRuns)
 ]
