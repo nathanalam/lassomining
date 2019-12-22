@@ -209,8 +209,6 @@ def getRuns(request):
 
     return HttpResponse(json.dumps(allRuns), content_type="text/plain")
     
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'),]
 
 urlpatterns = [
     url(r'^$', home),
