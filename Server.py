@@ -185,13 +185,11 @@ def about(request):
     return HttpResponse(html)
 
 def favicon(request):
-    html = "Error finding 'favicon.ico'"
-    with open("static/about.html", 'r') as file:
-        html = file.read()
-        html = str(html)
-        html = html.replace("$BASE_URL$", BASE_URL)
+    icon = "Error finding 'favicon.ico'"
+    with open("static/favicon.ico", 'rb') as file:
+        icon = file.read()
     
-    return HttpResponse(html)
+    return HttpResponse(icon, mimetype="image/png")
 
 def getRuns(request):
     allRuns = []
