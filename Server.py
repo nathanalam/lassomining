@@ -213,6 +213,6 @@ urlpatterns = [
     url(r'^status.html$', status),
     url(r'^matches.html$', matches),
     url(r'^about.html$', about),
-    static(r'^favicon.ico$', document_root='static/favicon.ico'),
+    static(r'/favicon.ico', document_root='static/favicon.ico'),
     url(r'^getRuns$', getRuns)
 ]
