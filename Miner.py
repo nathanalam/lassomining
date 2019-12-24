@@ -263,51 +263,82 @@ def patternMatch(sequenceORFs, pattern, filenam, runName):
                 def sortFunct(prot):
                     return (prot["start"] - start) ** 2;
 
-                term1 = 0
+                term1 = 1
                 closest = float("inf")
                 closestB = None
                 closestBs = []
+                
                 if len(Cproteins) != 0:
+
+                    # create a symbol table linking motifs to arrays of proteins
+                    motifTable = {}
                     for prot in Bproteins:
                         if isOverlapping(start, end, prot["start"], prot["end"]):
                             # print(str(start) + "-" + str(end) + " |B at " + str(prot["start"]) + "-" + str(prot["end"]))
                             # print(prot)
                             continue
-                        diffsquared = (prot["start"] - start) ** 2
-                        diffsquared = diffsquared * prot["score"]
-                        if diffsquared < closest:
-                            closestB = prot
-                            closest = diffsquared
-                        term1 += (1.0 / float(diffsquared))
+                        if not prot["motif"] in motifTable:
+                            motifTable[prot["motif"]] = []
+                        motifTable[prot["motif"]].append(prot)
                         closestBs.append(prot)
+
+                    # iterate over each symbol table value to get a summation, multiply those together
+                    for motif in motifTable:
+                            
+                        termi = 0
+                        for prot in motifTable[motif]:
+                            
+                            diffsquared = (prot["start"] - start) ** 2
+                            diffsquared = diffsquared * prot["p-value"]
+                            if diffsquared < closest:
+                                closestB = prot
+                                closest = diffsquared
+                            termi += (1.0 / float(diffsquared))
+                        
+                        term1 = term1 * termi
+                            
                 closestBs.sort(key=sortFunct)
 
-                term2 = 0
+                term2 = 1
                 closest = float("inf")
                 closestC = None
                 closestCs = []
                 if len(Bproteins) != 0:
 
+                    # create a symbol table linking motifs to arrays of proteins
+                    motifTable = {}
                     for prot in Cproteins:
                         if isOverlapping(start, end, prot["start"], prot["end"]):
-                            # print(str(start) + "-" + str(end) + " |C at " + str(prot["start"]) + "-" + str(prot["end"]))
+                            # print(str(start) + "-" + str(end) + " |B at " + str(prot["start"]) + "-" + str(prot["end"]))
                             # print(prot)
                             continue
-                        diffsquared = (prot["start"] - start) ** 2
-                        diffsquared = diffsquared * prot["score"]
-                        if diffsquared < closest:
-                            closestC = prot
-                            closest = diffsquared
-
-                        term2 += (1.0 / float(diffsquared))
+                        if not prot["motif"] in motifTable:
+                            motifTable[prot["motif"]] = []
+                        motifTable[prot["motif"]].append(prot)
                         closestCs.append(prot)
+
+                    # iterate over each symbol table value to get a summation, multiply those together
+                    for motif in motifTable:
+                            
+                        termi = 0
+                        for prot in motifTable[motif]:
+                            
+                            diffsquared = (prot["start"] - start) ** 2
+                            diffsquared = diffsquared * prot["p-value"]
+                            if diffsquared < closest:
+                                closestC = prot
+                                closest = diffsquared
+                            termi += (1.0 / float(diffsquared))
+                        
+                        term2 = term2 * termi
+
                 closestCs.sort(key=sortFunct)
 
                 rank = term1 * term2
                 if rank == 0:
                     continue
-                # else:
-                #    rank = -1 * math.log(rank, 10)
+                else:
+                   rank = -1 * math.log(rank, 10)
 
                 descriptors = description.split()
                 # append the protein to the list of proteins
