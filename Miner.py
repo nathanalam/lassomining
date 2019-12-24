@@ -371,7 +371,6 @@ def scanGenomes(runName, pattern):
     c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
              (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestBs text, closestCs text)''')
 
-    os.system("source ~/.bash_profile")
     DIRNAMES = []
     for dirname in os.listdir("genomes"):
         if (dirname.find(".") != -1):

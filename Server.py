@@ -3,8 +3,7 @@ from django.conf.urls.static import static
 from django.http import HttpResponse
 import json
 import os
-from Downloader import downloadGenomes
-from Miner import scanGenomes
+from Miner import scanGenomes, mine
 import time
 import sqlite3
 
@@ -91,7 +90,8 @@ def specificPeptides(request):
     return HttpResponse(json.dumps(returnList), content_type='text/json')
 
 def launch(request):
-    accessions = request.GET.get("accessions").split(",")
+    raw = request.GET.get("accessions")
+    accessions = raw.split(",")
     pattern = request.GET.get("pattern")
     runName = request.GET.get("runName")
 
@@ -122,7 +122,7 @@ def launch(request):
     def updateRun(message, number):
         runStatus["phase"] = message
         runStatus["totalTime"] = time.time() - t0
-        runStatus["progress"] = (number * 1.0) / len(accessions)
+        runStatus["progress"] = str((number * 1.0) / len(accessions))
         with open('runs/' + runName + '.json', 'w+') as outputFile:
             outputFile.write(json.dumps(runStatus))
 
