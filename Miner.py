@@ -274,7 +274,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName):
                             # print(prot)
                             continue
                         diffsquared = (prot["start"] - start) ** 2
-                        diffsquared = diffsquared * prot["p-value"]
+                        diffsquared = diffsquared * prot["score"]
                         if diffsquared < closest:
                             closestB = prot
                             closest = diffsquared
@@ -294,7 +294,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName):
                             # print(prot)
                             continue
                         diffsquared = (prot["start"] - start) ** 2
-                        diffsquared = diffsquared * prot["p-value"]
+                        diffsquared = diffsquared * prot["score"]
                         if diffsquared < closest:
                             closestC = prot
                             closest = diffsquared
@@ -306,8 +306,8 @@ def patternMatch(sequenceORFs, pattern, filenam, runName):
                 rank = term1 * term2
                 if rank == 0:
                     continue
-                else:
-                    rank = -1 * math.log(rank, 10)
+                # else:
+                #    rank = -1 * math.log(rank, 10)
 
                 descriptors = description.split()
                 # append the protein to the list of proteins
