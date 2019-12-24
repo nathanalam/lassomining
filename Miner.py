@@ -379,21 +379,42 @@ def scanGenomes(runName, pattern):
 
     conn.commit()
     conn.close()
-    print("Found " + str(len(matchedProteins)) + " that satisfy the pattern: " + pattern)
-
-    print("Adding results to output/matches.json")
-    lassopeptides = []
-    # with open('output/' + "matches" + '.json', 'r') as storedfile:
-    #     lassopeptides = json.loads(storedfile.read())
-
-    lassopeptides.extend(matchedProteins)
-
-    with open('output/' + "matches" + '.json', 'w') as outfile:
-        json.dump(lassopeptides, outfile)
-
-    print("Writing output to '" + "matches" + ".csv'")
-    pd.read_json("output/" + "matches" +".json").to_csv("output/" + "matches" +".csv")
 
     return matchedProteins
 
-# scanGenomes("matches", PATTERN)
+def mine(accession, runName, pattern):
+
+    ## download the genome associated with the accession number
+    print("Generating URL File downloads for genomes")
+    
+    os.system('esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt')
+
+    print("Downloading files using wget into genomes folder")
+    os.system("wget --directory-prefix=genomes $( cat fileurls.txt )")
+
+    print("Unzipping downloaded files")
+    os.system("gunzip -r genomes")
+
+    os.system("rm fileurls.txt")
+
+    ## translate the downloaded file into amino acid sequence
+    print("translating accessions")
+    os.system("python3 Translator.py")
+
+    # launch the actual mining of the translated genomes
+    print("scanning genomes for lassos")
+    results = scanGenomes(runName, pattern)
+    print("found " + str(len(results)) + " peptides from " + accession)
+
+    ## clear the genomes subdirectory
+    print("clearing the genomes directory...")
+    ALLDIRNAMES = []
+    for dirname in os.listdir("genomes"):
+        ## if a regular file, just add to directory
+        if (dirname.find(".") != -1):
+            ALLDIRNAMES.append("genomes/" + dirname)
+        else:
+            for filename in os.listdir("genomes/" + dirname):
+                ALLDIRNAMES.append("genomes/" + dirname + "/" + filename)
+    for dirname in ALLDIRNAMES:
+        os.remove(dirname)
