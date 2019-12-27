@@ -8,12 +8,16 @@ import time
 import sqlite3
 
 BASE_URL = "http://50.116.48.39:8080"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/genomemining/"
 
 # Server code
 DEBUG = True
 SECRET_KEY = '4l0ngs3cr3tstr1ngw3lln0ts0l0ngw41tn0w1tsl0ng3n0ugh'
 ROOT_URLCONF = __name__
-ALLOWED_HOSTS = [BASE_URL[7:]]
+ALLOWED_HOSTS = [BASE_URL[7:], BASE_URL[7:len(BASE_URL) - 5], BASE_DIR]
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'),]
+DEBUG=False
 
 def readPeptides(sequence, genome, start, end, runName, maxNum):
     
@@ -182,10 +186,6 @@ def getRuns(request):
             allRuns.append(particularRun)
 
     return HttpResponse(json.dumps(allRuns), content_type="text/plain")
-    
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, "static/")
 
 urlpatterns = [
     url(r'^$', home),
