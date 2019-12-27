@@ -183,6 +183,9 @@ def getRuns(request):
 
     return HttpResponse(json.dumps(allRuns), content_type="text/plain")
     
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, "static/")
 
 urlpatterns = [
     url(r'^$', home),
@@ -193,6 +196,5 @@ urlpatterns = [
     url(r'^status.html$', status),
     url(r'^matches.html$', matches),
     url(r'^about.html$', about),
-    # static(r'/favicon.ico', document_root='static/favicon.ico'),
     url(r'^getRuns$', getRuns)
 ]
