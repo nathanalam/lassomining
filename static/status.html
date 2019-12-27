@@ -63,7 +63,7 @@
 
         </div>
         <script>
-            $(document).ready(function() {
+            function refresh() {
                 $("#canvas").empty();
                 $("#canvas").append(`
                 <br>
@@ -84,12 +84,13 @@
                                 <div class="card-header">` + runList[i].name + `</div>
                                 <div class="card-body">
                                     <p class="card-text">
-                                        Pattern: ` + runList[i].pattern + `<br>
-                                        Input Accessions: ` + runList[i].input + `<br>
-                                        Progress: ` + runList[i].progress + `<br>
-                                        Time Elapsed: ` + runList[i].totalTime + `
+                                        <b>Pattern:</b> ` + runList[i].pattern + `<br>
+                                        <b>Input Accessions:</b> ` + runList[i].input + `<br>
+                                        <b>Progress:</b> ` + (parseFloat(runList[i].progress) * 100) + `%<br>
+                                        <b>Time Elapsed:</b> ` + runList[i].totalTime + `
                                     </p>
                                     <div id="plot` + i + `"></div>
+                                    <button onclick="deleteRun('` + runList[i].name +`')" type="button" class="btn btn-danger">Delete</button>
                                 </div>
                             </div>
                         `);
@@ -102,7 +103,20 @@
                         Plotly.newPlot('plot' + i, data);
                     }
                 });
+            }
+
+            $(document).ready(function() {
+                refresh();
             });
+
+            function deleteRun(name) {
+                $.get('$BASE_URL$/deleteRun', { 
+                    runName : name,
+                }, function(data) {
+                    console.log(data);
+                    refresh();
+                });
+            }
 
             function replaceAll(str, find, replace) {
                 return str.replace(new RegExp(find, 'g'), replace);

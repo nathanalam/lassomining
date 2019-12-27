@@ -187,6 +187,20 @@ def getRuns(request):
 
     return HttpResponse(json.dumps(allRuns), content_type="text/plain")
 
+def deleteRun(request):
+    runName = request.GET.get("runName")
+
+    os.remove("runs/" + runName + ".json");
+    conn = sqlite3.connect('matches.db')
+    c = conn.cursor()
+    # get all lasso peptides, sorted by rank
+
+    c.execute("DELETE FROM lassopeptides WHERE runName='" + runName + "'")
+
+    c.close()
+
+    return HttpResponse("Removed all entries with run name " + runName, content_type="text/plain")
+
 urlpatterns = [
     url(r'^$', home),
     url(r'^getpeptides$', specificPeptides),
@@ -196,5 +210,6 @@ urlpatterns = [
     url(r'^status.html$', status),
     url(r'^matches.html$', matches),
     url(r'^about.html$', about),
-    url(r'^getRuns$', getRuns)
+    url(r'^getRuns$', getRuns),
+    url(r'^deleteRun$', deleteRun)
 ]
