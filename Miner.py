@@ -371,8 +371,6 @@ def scanGenomes(runName, pattern, cutoffRank):
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
              (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestBs text, closestCs text)''')
-    conn.commit()
-    conn.close()
 
     DIRNAMES = []
     for dirname in os.listdir("genomes"):
@@ -393,7 +391,6 @@ def scanGenomes(runName, pattern, cutoffRank):
             raise RuntimeError
         for i in range(0, len(readSequences), 6):
             buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName, cutoffRank)
-            c = conn.cursor()
             for peptide in buffer:
                 c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                     [peptide['sequence'],
@@ -408,10 +405,12 @@ def scanGenomes(runName, pattern, cutoffRank):
                     json.dumps(str(peptide['closestBs'])),
                     json.dumps(str(peptide['closestCs']))]
                 )
-            conn.commit()
-            conn.close()
+            
             matchedProteins.extend(buffer)
 
+    conn.commit()
+    conn.close()
+    
     return matchedProteins
 
 def mine(accession, runName, pattern, cutoffRank):
