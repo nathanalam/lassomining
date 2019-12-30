@@ -54,6 +54,13 @@
                                     </div>
                                     <input id="run" name="run" type="text" class="form-control" placeholder="Name this run" aria-label="Name" aria-describedby="basic-addon1">
                                 </div>
+
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" id="basic-addon1">Cutoff Rank</span>
+                                    </div>
+                                    <input id="minrank" name="minrank" type="text" class="form-control" placeholder="Rank must be greater than this" aria-label="Rank" aria-describedby="basic-addon1">
+                                </div>
                                 
                                 <button type="button" class="btn btn-primary" id="submit">Submit</button>
                                 <button type="button" class="btn btn-primary"  data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample" id="close">^</button>
@@ -127,7 +134,8 @@
                 $.get('$BASE_URL$/launchrun', { 
                     accessions: $("#acc").val(),
                     pattern: $("#pat").val(),
-                    runName: $("#run").val()
+                    runName: $("#run").val(),
+                    cutoffRank: $("#minrank").val()
                 }, function(data) {
                     alert(data);
                 });

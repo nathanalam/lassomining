@@ -98,6 +98,7 @@ def launch(request):
     accessions = raw.split(",")
     pattern = request.GET.get("pattern")
     runName = request.GET.get("runName")
+    cutoffRank = float(request.GET.get("cutoffRank"))
 
     if os.path.exists("hold.txt"):
         occupant = ""
@@ -132,7 +133,7 @@ def launch(request):
 
     count = 0
     for accession in accessions:
-        mine(accession, runName, pattern)
+        mine(accession, runName, pattern, cutoffRank)
         count += 1
         updateRun("processing" + accession, count)
 
@@ -179,7 +180,7 @@ def getRuns(request):
             conn = sqlite3.connect('matches.db')
             c = conn.cursor()
             # get all lasso peptides, sorted by rank
-            for row in c.execute("SELECT rank FROM lassopeptides WHERE runName LIKE '" + particularRun["name"] + "%' ORDER BY 1 ASC"):
+            for row in c.execute("SELECT rank FROM lassopeptides WHERE runName LIKE '" + particularRun["name"] + "%' ORDER BY 1 DESC"):
                 ranks.append(row[0])
             c.close()
             particularRun["ranks"] = ranks
@@ -195,9 +196,11 @@ def deleteRun(request):
     c = conn.cursor()
     # get all lasso peptides, sorted by rank
 
-    c.execute("DELETE FROM lassopeptides WHERE runName='" + runName + "'")
+    c.execute("DELETE FROM lassopeptides WHERE runName LIKE '" + runName + "%'")
 
+    conn.commit()
     c.close()
+    conn.close()
 
     return HttpResponse("Removed all entries with run name " + runName, content_type="text/plain")
 

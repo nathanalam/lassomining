@@ -203,7 +203,7 @@ precursor peptides matching the regular expression pattern at the top of the scr
 The function returns a list of matched proteins, which have a specific sequence, ORF, 
 nearest B/C cluster, and range within the overall sequence.
 '''
-def patternMatch(sequenceORFs, pattern, filenam, runName):
+def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
     Aproteins = []
     Bproteins = []
     Cproteins = []
@@ -335,41 +335,44 @@ def patternMatch(sequenceORFs, pattern, filenam, runName):
                 closestCs.sort(key=sortFunct)
 
                 rank = term1 * term2
-                if rank == 0:
+                if rank <= 0:
                     continue
                 else:
-                   rank = -1 * math.log(rank, 10)
+                   rank = math.log(rank, 10)
 
                 descriptors = description.split()
                 # append the protein to the list of proteins
-                Aproteins.append({
-                    "description": description,
-                    "sequence": match.group(0),
-                    "searchPattern": match.re.pattern,
-                    "searchRange": indices,
-                    "overallLength": len(overallSequence) * 3,
-                    "rank": rank,
-                    "closestB": closestB,
-                    "closestBs": closestBs[0:10],
-                    "closestC": closestC,
-                    "closestCs": closestCs[0:10],
-                    "ORF": ORFs[ORF],
-                    "genome": descriptors[1] + " " + descriptors[2],
-                    "index": descriptors[0],
-                    "runName": runName
-                    ## "overallString": match.string
-                })
+                if (rank >= cutoffRank):
+                    Aproteins.append({
+                        "description": description,
+                        "sequence": match.group(0),
+                        "searchPattern": match.re.pattern,
+                        "searchRange": indices,
+                        "overallLength": len(overallSequence) * 3,
+                        "rank": rank,
+                        "closestB": closestB,
+                        "closestBs": closestBs[0:10],
+                        "closestC": closestC,
+                        "closestCs": closestCs[0:10],
+                        "ORF": ORFs[ORF],
+                        "genome": descriptors[1] + " " + descriptors[2],
+                        "index": descriptors[0],
+                        "runName": runName
+                        ## "overallString": match.string
+                    })
                 
         ORF += 1
     return Aproteins
 
 
-def scanGenomes(runName, pattern):
+def scanGenomes(runName, pattern, cutoffRank):
     conn = sqlite3.connect('matches.db')
 
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
              (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestBs text, closestCs text)''')
+    conn.commit()
+    conn.close()
 
     DIRNAMES = []
     for dirname in os.listdir("genomes"):
@@ -389,7 +392,8 @@ def scanGenomes(runName, pattern):
             print("Instead, it has " + str(len(readSequences)))
             raise RuntimeError
         for i in range(0, len(readSequences), 6):
-            buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName)
+            buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName, cutoffRank)
+            c = conn.cursor()
             for peptide in buffer:
                 c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                     [peptide['sequence'],
@@ -404,20 +408,23 @@ def scanGenomes(runName, pattern):
                     json.dumps(str(peptide['closestBs'])),
                     json.dumps(str(peptide['closestCs']))]
                 )
+            conn.commit()
+            conn.close()
             matchedProteins.extend(buffer)
-        
-
-    conn.commit()
-    conn.close()
 
     return matchedProteins
 
-def mine(accession, runName, pattern):
+def mine(accession, runName, pattern, cutoffRank):
 
     ## download the genome associated with the accession number
     print("Generating URL File downloads for genomes")
     
-    os.system('esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt')
+    print(accession[len(accession) - 3:])
+    if(".gz" in accession[len(accession) - 3:]):
+        print("found a direct zip file address")
+        os.system('echo "' + accession +'" >> fileurls.txt')
+    else: 
+        os.system('esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt')
 
     print("Downloading files using wget into genomes folder")
     os.system("wget --directory-prefix=genomes $( cat fileurls.txt )")
@@ -433,7 +440,7 @@ def mine(accession, runName, pattern):
 
     # launch the actual mining of the translated genomes
     print("scanning genomes for lassos")
-    results = scanGenomes(runName, pattern)
+    results = scanGenomes(runName, pattern, cutoffRank)
     print("found " + str(len(results)) + " peptides from " + accession)
 
     ## clear the genomes subdirectory
