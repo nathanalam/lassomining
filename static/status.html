@@ -54,6 +54,13 @@
                                     </div>
                                     <input id="run" name="run" type="text" class="form-control" placeholder="Name this run" aria-label="Name" aria-describedby="basic-addon1">
                                 </div>
+
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" id="basic-addon1">Cutoff Rank</span>
+                                    </div>
+                                    <input id="minrank" name="minrank" type="text" class="form-control" placeholder="Rank must be greater than this" aria-label="Rank" aria-describedby="basic-addon1">
+                                </div>
                                 
                                 <button type="button" class="btn btn-primary" id="submit">Submit</button>
                                 <button type="button" class="btn btn-primary"  data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample" id="close">^</button>
@@ -63,7 +70,16 @@
 
         </div>
         <script>
-            $(document).ready(function() {
+            function refresh() {
+                $("#canvas").empty();
+                $("#canvas").append(`
+                <br>
+                <div class="d-flex justify-content-center">
+                    <div class="spinner-border" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+                `);
                 $.get('$BASE_URL$/getRuns', {}, function(data) {
                     console.log(data);
                     runList = JSON.parse(replaceAll(data, "\'", "\""));
@@ -75,12 +91,13 @@
                                 <div class="card-header">` + runList[i].name + `</div>
                                 <div class="card-body">
                                     <p class="card-text">
-                                        Pattern: ` + runList[i].pattern + `<br>
-                                        Input Accessions: ` + runList[i].input + `<br>
-                                        Phase: ` + runList[i].phase + `<br>
-                                        Time Elapsed: ` + runList[i].totalTime + `
+                                        <b>Pattern:</b> ` + runList[i].pattern + `<br>
+                                        <b>Input Accessions:</b> ` + runList[i].input + `<br>
+                                        <b>Progress:</b> ` + (parseFloat(runList[i].progress) * 100) + `%<br>
+                                        <b>Time Elapsed:</b> ` + runList[i].totalTime + `
                                     </p>
                                     <div id="plot` + i + `"></div>
+                                    <button onclick="deleteRun('` + runList[i].name +`')" type="button" class="btn btn-danger">Delete</button>
                                 </div>
                             </div>
                         `);
@@ -93,7 +110,20 @@
                         Plotly.newPlot('plot' + i, data);
                     }
                 });
+            }
+
+            $(document).ready(function() {
+                refresh();
             });
+
+            function deleteRun(name) {
+                $.get('$BASE_URL$/deleteRun', { 
+                    runName : name,
+                }, function(data) {
+                    console.log(data);
+                    refresh();
+                });
+            }
 
             function replaceAll(str, find, replace) {
                 return str.replace(new RegExp(find, 'g'), replace);
@@ -104,9 +134,10 @@
                 $.get('$BASE_URL$/launchrun', { 
                     accessions: $("#acc").val(),
                     pattern: $("#pat").val(),
-                    runName: $("#run").val()
+                    runName: $("#run").val(),
+                    cutoffRank: $("#minrank").val()
                 }, function(data) {
-                    alert("Run " + $("#run").val() + " has completed");
+                    alert(data);
                 });
             });
         </script>

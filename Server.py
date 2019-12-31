@@ -3,18 +3,21 @@ from django.conf.urls.static import static
 from django.http import HttpResponse
 import json
 import os
-from Downloader import downloadGenomes
-from Miner import scanGenomes
+from Miner import scanGenomes, mine
 import time
 import sqlite3
 
 BASE_URL = "http://50.116.48.39:8080"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/genomemining/"
 
 # Server code
 DEBUG = True
 SECRET_KEY = '4l0ngs3cr3tstr1ngw3lln0ts0l0ngw41tn0w1tsl0ng3n0ugh'
 ROOT_URLCONF = __name__
-ALLOWED_HOSTS = [BASE_URL[7:]]
+ALLOWED_HOSTS = [BASE_URL[7:], BASE_URL[7:len(BASE_URL) - 5], BASE_DIR]
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'),]
+DEBUG=False
 
 def readPeptides(sequence, genome, start, end, runName, maxNum):
     
@@ -92,8 +95,19 @@ def specificPeptides(request):
 
 def launch(request):
     raw = request.GET.get("accessions")
+    accessions = raw.split(",")
     pattern = request.GET.get("pattern")
     runName = request.GET.get("runName")
+    cutoffRank = float(request.GET.get("cutoffRank"))
+
+    if os.path.exists("hold.txt"):
+        occupant = ""
+        with open("hold.txt") as file:
+            occupant = file.read()
+        return(HttpResponse("Occupied with run " + occupant, content_type="text/plain")) 
+    
+    with open("hold.txt", "w+") as file:
+        file.write(runName)
 
     # start a timer
     t0 = time.time()
@@ -102,58 +116,29 @@ def launch(request):
     runStatus = {
         "name": runName,
         "pattern": pattern,
-        "input": str(raw)
+        "input": str(raw),
+        "progress": 0.0
     }
-    phases = ["initialized", "downloaded accessions", "translated accessions", "finished mining"]
 
     # define a function to progressively update the current status of the run
     if not os.path.exists("runs/" + runName + ".json"):
         os.mknod("runs/" + runName + ".json")
-    def updateRun(message):
+        
+    def updateRun(message, number):
         runStatus["phase"] = message
         runStatus["totalTime"] = time.time() - t0
+        runStatus["progress"] = str((number * 1.0) / len(accessions))
         with open('runs/' + runName + '.json', 'w+') as outputFile:
             outputFile.write(json.dumps(runStatus))
 
-    # download accession number genomes
-    updateRun(phases[0])
-    accessions = raw.split(",")
-    print("downloading accessions " + str(accessions))
-    downloadGenomes(accessions)
-    updateRun(phases[1])
+    count = 0
+    for accession in accessions:
+        mine(accession, runName, pattern, cutoffRank)
+        count += 1
+        updateRun("processing" + accession, count)
 
-    # launch translation of nucleic acids to amino acids
-    print("translating accessions")
-    os.system("python3 Translator.py")
-    updateRun(phases[2])
-
-    # launch the actual mining of the translated genomes
-    print("scanning genomes for lassos")
-    results = scanGenomes(runName, pattern)
-    updateRun(phases[3])
-    print("results saved to output/" + "matches" + ".json")
-
-    runStatus["results"] = {
-        "quantity": len(results)
-    }
-
-    # record the runstatus one final time outside of helper function
-    with open('runs/' + runName + '.json', 'w+') as outputFile:
-        outputFile.write(json.dumps(runStatus))
-
-    ## clear the genomes subdirectory
-    print("clearing the genomes directory...")
-    ALLDIRNAMES = []
-    for dirname in os.listdir("genomes"):
-        ## if a regular file, just add to directory
-        if (dirname.find(".") != -1):
-            ALLDIRNAMES.append("genomes/" + dirname)
-        else:
-            for filename in os.listdir("genomes/" + dirname):
-                ALLDIRNAMES.append("genomes/" + dirname + "/" + filename)
-    print("Clearing all files in genome directory")
-    for dirname in ALLDIRNAMES:
-        os.remove(dirname)
+    print("finished all the runs for " + runName)
+    os.remove("hold.txt")
 
     return(HttpResponse("Done with run " + runName, content_type="text/plain"))
 
@@ -195,14 +180,29 @@ def getRuns(request):
             conn = sqlite3.connect('matches.db')
             c = conn.cursor()
             # get all lasso peptides, sorted by rank
-            for row in c.execute("SELECT rank FROM lassopeptides WHERE runName LIKE '" + particularRun["name"] + "%' ORDER BY 1 ASC"):
+            for row in c.execute("SELECT rank FROM lassopeptides WHERE runName LIKE '" + particularRun["name"] + "%' ORDER BY 1 DESC"):
                 ranks.append(row[0])
             c.close()
             particularRun["ranks"] = ranks
             allRuns.append(particularRun)
 
     return HttpResponse(json.dumps(allRuns), content_type="text/plain")
-    
+
+def deleteRun(request):
+    runName = request.GET.get("runName")
+
+    os.remove("runs/" + runName + ".json");
+    conn = sqlite3.connect('matches.db')
+    c = conn.cursor()
+    # get all lasso peptides, sorted by rank
+
+    c.execute("DELETE FROM lassopeptides WHERE runName LIKE '" + runName + "%'")
+
+    conn.commit()
+    c.close()
+    conn.close()
+
+    return HttpResponse("Removed all entries with run name " + runName, content_type="text/plain")
 
 urlpatterns = [
     url(r'^$', home),
@@ -213,6 +213,6 @@ urlpatterns = [
     url(r'^status.html$', status),
     url(r'^matches.html$', matches),
     url(r'^about.html$', about),
-    # static(r'/favicon.ico', document_root='static/favicon.ico'),
-    url(r'^getRuns$', getRuns)
+    url(r'^getRuns$', getRuns),
+    url(r'^deleteRun$', deleteRun)
 ]

@@ -88,7 +88,7 @@
             $(document).ready(function() {
                 $.get('$BASE_URL$/genomeList', {}, function(data) {
                     console.log("genomes: " + data);
-                    genomeList = JSON.parse(replaceAll(data, "\'", "\""));
+                    genomeList = JSON.parse(data)
                     $("#genomes").empty();
                     for(var i = 0; i < genomeList.length; i++) {
                         $("#genomes").append(`
@@ -103,6 +103,15 @@
             }
 
             $("#submit").click(function() {
+                $("#results").empty();
+                $("#results").append(`
+                <br>
+                <div class="d-flex justify-content-center">
+                    <div class="spinner-border" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+                `);
                 $.get('$BASE_URL$/getpeptides', { 
                     genome: $("#gen").val(),
                     sequence: $("#seq").val(),
@@ -149,19 +158,46 @@
                         <br>
                         `);
 
+
+                        var minRange = peptides[i].overallLength;
+                        var maxRange = 0;
+
+                        function updateRange(number) {
+                            if(number < minRange) {
+                                minRange = number;
+                            }
+                            if(number > maxRange) {
+                                maxRange = number;
+                            }
+                        }
                         var sequence = {
                             x: [0, peptides[i].overallLength],
                             y: [1, 1],
                             type: 'line',
-                            name: "Sequence"
+                            name: "Sequence",
+                            marker: {
+                                color: 'rgb(21,101,192)'
+                            },
+                            line: {
+                                color: 'rgb(21,101,192)'
+                            }
                         }
 
                         var Aprot = {
                             x: [peptides[i].start, peptides[i].end],
                             y: [3, 3],
                             type: 'line',
-                            name: "A"
+                            name: "A",
+                            text: "A - precursor peptide",
+                            marker: {
+                                    color: 'rgb(46,125,50)'
+                                },
+                                line: {
+                                    color: 'rgb(46,125,50)'
+                                }
                         };
+                        updateRange(peptides[i].start);
+                        updateRange(peptides[i].end);
 
 
                         closestBs = JSON.parse(replaceAll(peptides[i].closestBs, "\'", "\""));
@@ -170,11 +206,20 @@
                         for(var e = 0; e < closestBs.length; e++) {
                             var newProt = {
                                 x: [closestBs[e]["start"], closestBs[e]["end"]],
-                                y: [9, 9],
+                                y: [5, 5],
                                 type: 'line',
-                                name: "B" + e
+                                name: "B" + e,
+                                text: closestBs[e]["motif"] + "<br>P-value: " + closestBs[e]["p-value"],
+                                marker: {
+                                    color: 'rgb(249,168,37)'
+                                },
+                                line: {
+                                    color: 'rgb(249,168,37)'
+                                }
                             };
                             otherBprots.push(newProt);
+                            updateRange(closestBs[e]["start"]);
+                            updateRange(closestBs[e]["end"]);
                         }
 
                         closestCs = JSON.parse(replaceAll(peptides[i].closestCs, "\'", "\""));
@@ -183,11 +228,20 @@
                         for(var e = 0; e < closestCs.length; e++) {
                             var newProt = {
                                 x: [closestCs[e]["start"], closestCs[e]["end"]],
-                                y: [9, 9],
+                                y: [7, 7],
                                 type: 'line',
-                                name: "C" + e
+                                name: "C" + e,
+                                text: closestCs[e]["motif"] + "<br>P-value: " + closestCs[e]["p-value"],
+                                marker: {
+                                    color: 'rgb(255,61,0)'
+                                },
+                                line: {
+                                    color: 'rgb(255,61,0)'
+                                }
                             };
                             otherCprots.push(newProt);
+                            updateRange(closestCs[e]["start"]);
+                            updateRange(closestCs[e]["end"]);
                         }
 
                         var plotdata = [sequence, Aprot];
@@ -196,11 +250,12 @@
 
                         Plotly.newPlot('plot' + i, plotdata, {
                                 xaxis: {
-                                    range: [peptides[i].start - 20, peptides[i].end + 20]
+                                    range: [minRange - 20, maxRange + 20]
                                 },
                                 yaxis: {
                                     range: [0, 10]
-                                }
+                                },
+                                showlegend: false
                             }
                         );
                     }
