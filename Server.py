@@ -32,7 +32,7 @@ def readPeptides(sequence, genome, start, end, runName, maxNum):
     start >= """ + str(start) + """ AND
     end <= """ + str(end) + """ AND
     runName LIKE '%""" + runName + """%'
-    ORDER BY 5 ASC 
+    ORDER BY 5 DESC 
     LIMIT """ + str(maxNum)
     print(selectionString)
     for row in c.execute(selectionString):
