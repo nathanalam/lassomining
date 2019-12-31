@@ -36,7 +36,7 @@
                         <div class="jumbotron">
                                 <div class="input-group mb-3">
                                     <div class="input-group-prepend">
-                                        <span class="input-group-text" id="basic-addon1">Accessions</span>
+                                        <span class="input-group-text" id="basic-addon1">Accessions or Links to ".gz" files</span>
                                     </div>
                                     <input id="acc" name="acc" type="text" class="form-control" placeholder="Comma separated" aria-label="Accessions" aria-describedby="basic-addon1">
                                 </div>
@@ -62,6 +62,12 @@
                                     <input id="minrank" name="minrank" type="text" class="form-control" placeholder="Rank must be greater than this" aria-label="Rank" aria-describedby="basic-addon1">
                                 </div>
                                 
+                                <div class="custom-file">
+                                    <input type="file" class="custom-file-input" id="customFile">
+                                    <label class="custom-file-label" for="customFile">Choose file</label>
+                                </div>
+
+                                <br><br>
                                 <button type="button" class="btn btn-primary" id="submit">Submit</button>
                                 <button type="button" class="btn btn-primary"  data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample" id="close">^</button>
                             </div>
@@ -130,15 +136,34 @@
             }
 
             $("#submit").click(function() {
+                var file = $("#customFile").val();
+                //var file = fileInput;
+                var fd = new FormData();
+                fd.append("sequenceFileData", file);
+                fd.append("accessions", $("#acc").val());
+                fd.append("pattern", $("#pat").val());
+                fd.append("runName", $("#run").val());
+                fd.append("cutoffRank", $("#minrank").val());
+                console.log(fd.get("sequenceFileData"));
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", '$BASE_URL$/launchrun');
+                xhr.onreadystatechange = function (data) {
+                    if (xhr.readyState == 4) {
+                        alert('success');
+                        console.log(xhr.response)
+                    }
+                };
+                xhr.send(fd);
                 alert("Run " + $("#run").val() + " has begun! Please wait, and refresh the page");
-                $.get('$BASE_URL$/launchrun', { 
-                    accessions: $("#acc").val(),
-                    pattern: $("#pat").val(),
-                    runName: $("#run").val(),
-                    cutoffRank: $("#minrank").val()
-                }, function(data) {
-                    alert(data);
-                });
+                
+                // $.get('$BASE_URL$/launchrun', { 
+                //     accessions: $("#acc").val(),
+                //     pattern: $("#pat").val(),
+                //     runName: $("#run").val(),
+                //     cutoffRank: $("#minrank").val()
+                // }, function(data) {
+                //     alert(data);
+                // });
             });
         </script>
     </body>

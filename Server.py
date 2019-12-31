@@ -94,11 +94,24 @@ def specificPeptides(request):
     return HttpResponse(json.dumps(returnList), content_type='text/json')
 
 def launch(request):
-    raw = request.GET.get("accessions")
+    str = "no post"
+    if request.method == 'POST':
+        print("trying to read string")
+        str = request.FILES.getlist('sequenceFileData')
+        print(request.FILES.getlist('sequenceFileData'))
+
+        # form = MyForm(request.POST)
+
+        # print(form['runName'].value())
+        # print(form.data['runName'])
+
+    return(HttpResponse("Server obtained some data! - " + str, content_type="text/plain")) 
+
+    raw = request.POST.get("accessions")
     accessions = raw.split(",")
-    pattern = request.GET.get("pattern")
-    runName = request.GET.get("runName")
-    cutoffRank = float(request.GET.get("cutoffRank"))
+    pattern = request.POST.get("pattern")
+    runName = request.POST.get("runName")
+    cutoffRank = float(request.POST.get("cutoffRank"))
 
     if os.path.exists("hold.txt"):
         occupant = ""
