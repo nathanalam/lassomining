@@ -116,31 +116,56 @@ def launch(request):
     runStatus = {
         "name": runName,
         "pattern": pattern,
-        "input": str(raw),
-        "progress": 0.0
+        "input": [],
+        "progress": 0.0,
+        "peptides": 0,
+        "cutoff": cutoffRank
     }
 
     # define a function to progressively update the current status of the run
     if not os.path.exists("runs/" + runName + ".json"):
         os.mknod("runs/" + runName + ".json")
-        
-    def updateRun(message, number):
+ 
+    def updateRun(message, number, count, accession):
         runStatus["phase"] = message
         runStatus["totalTime"] = time.time() - t0
+        runStatus["input"].append(accession)
         runStatus["progress"] = str((number * 1.0) / len(accessions))
+        runStatus["peptides"] = count
         with open('runs/' + runName + '.json', 'w+') as outputFile:
             outputFile.write(json.dumps(runStatus))
 
     count = 0
-    for accession in accessions:
-        mine(accession, runName, pattern, cutoffRank)
-        count += 1
-        updateRun("processing" + accession, count)
+    peptideCount = 0
+    returnText = "Done with run " + runName
 
-    print("finished all the runs for " + runName)
-    os.remove("hold.txt")
+    try:
+        # combine accessions with the accessions in the accessions buffer text file
+        with open("accessions.txt", "a+") as file:
+            for accession in accessions:
+                file.write(accession + "\n")
+        
+        f = open('accessions.txt')
+        accession = f.readline()
+        while accession:
+            peptideCount += mine(accession, runName, pattern, cutoffRank)
+            count += 1
+            updateRun("processing" + accession, count, peptideCount, accession)
+            accession = f.readline()
+        f.close()
+            
 
-    return(HttpResponse("Done with run " + runName, content_type="text/plain"))
+        print("finished all the runs for " + runName)
+    except Exception as e: 
+        print("error occured while doing run " + runName)
+        returnText = "Failed run " + runName + " with error " + str(e)
+    
+    if os.path.exists("accessions.txt"):
+        os.remove("accessions.txt")
+    if os.path.exists("hold.txt"):
+        os.remove("hold.txt")
+
+    return(HttpResponse(returnText, content_type="text/plain"))
 
     
 def status(request):
@@ -186,7 +211,21 @@ def getRuns(request):
             particularRun["ranks"] = ranks
             allRuns.append(particularRun)
 
-    return HttpResponse(json.dumps(allRuns), content_type="text/plain")
+    currentRun = ""
+    busy = False
+    if os.path.exists("hold.txt"):
+        busy = True
+        with open("hold.txt") as file:
+            currentRun = file.read()
+
+    status = {
+        "meta": {
+            "busy": busy,
+            "currentRun": currentRun
+        },
+        "allRuns": allRuns
+    }
+    return HttpResponse(json.dumps(status), content_type="text/plain")
 
 def deleteRun(request):
     runName = request.GET.get("runName")
@@ -194,15 +233,35 @@ def deleteRun(request):
     os.remove("runs/" + runName + ".json");
     conn = sqlite3.connect('matches.db')
     c = conn.cursor()
-    # get all lasso peptides, sorted by rank
-
     c.execute("DELETE FROM lassopeptides WHERE runName LIKE '" + runName + "%'")
-
     conn.commit()
     c.close()
     conn.close()
 
     return HttpResponse("Removed all entries with run name " + runName, content_type="text/plain")
+
+def cancelRun(request):
+    try: 
+        if os.path.exists("accessions.txt"):
+            os.remove("accessions.txt")
+        if os.path.exists("hold.txt"):
+            os.remove("hold.txt")
+        
+        print("clearing the genomes directory...")
+        ALLDIRNAMES = []
+        for dirname in os.listdir("genomes"):
+            ## if a regular file, just add to directory
+            if (dirname.find(".") != -1):
+                ALLDIRNAMES.append("genomes/" + dirname)
+            else:
+                for filename in os.listdir("genomes/" + dirname):
+                    ALLDIRNAMES.append("genomes/" + dirname + "/" + filename)
+        for dirname in ALLDIRNAMES:
+            os.remove(dirname)
+    except:
+        return HttpResponse("Could not cancel run", content_type="text/plain") 
+
+    return HttpResponse("Cancelled the current run", content_type="text/plain")
 
 urlpatterns = [
     url(r'^$', home),
@@ -214,5 +273,6 @@ urlpatterns = [
     url(r'^matches.html$', matches),
     url(r'^about.html$', about),
     url(r'^getRuns$', getRuns),
-    url(r'^deleteRun$', deleteRun)
+    url(r'^deleteRun$', deleteRun),
+    url(r'^cancelRun$', cancelRun)
 ]

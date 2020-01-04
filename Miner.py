@@ -415,15 +415,22 @@ def scanGenomes(runName, pattern, cutoffRank):
 
 def mine(accession, runName, pattern, cutoffRank):
 
+    accession = accession.strip()
     ## download the genome associated with the accession number
     print("Generating URL File downloads for genomes")
-    
-    print(accession[len(accession) - 3:])
     if(".gz" in accession[len(accession) - 3:]):
         print("found a direct zip file address")
         os.system('echo "' + accession +'" >> fileurls.txt')
     else: 
-        os.system('esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt')
+        print("attempting assembly search")
+        str1 = 'esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt'
+        print(str1)
+        os.system(str1)
+        print("attempting nucleotide search")
+        str1 = 'esearch -db nucleotide -query "' + accession + '" | efetch -format fasta >> genomes/' + accession + '.fna'
+        print(str1)
+        os.system(str1)
+        # os.system('esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt')
 
     print("Downloading files using wget into genomes folder")
     os.system("wget --directory-prefix=genomes $( cat fileurls.txt )")
@@ -440,7 +447,8 @@ def mine(accession, runName, pattern, cutoffRank):
     # launch the actual mining of the translated genomes
     print("scanning genomes for lassos")
     results = scanGenomes(runName, pattern, cutoffRank)
-    print("found " + str(len(results)) + " peptides from " + accession)
+    count = len(results)
+    print("found " + str(count) + " peptides from " + accession)
 
     ## clear the genomes subdirectory
     print("clearing the genomes directory...")
@@ -454,3 +462,5 @@ def mine(accession, runName, pattern, cutoffRank):
                 ALLDIRNAMES.append("genomes/" + dirname + "/" + filename)
     for dirname in ALLDIRNAMES:
         os.remove(dirname)
+
+    return count

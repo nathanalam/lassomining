@@ -28,7 +28,7 @@
                 </div>
             </nav>
                 <div style="text-align: center;">
-                    <button style="margin: 0 auto;" class="btn btn-light" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+                    <button id="launchButton" style="margin: 0 auto;" class="btn btn-light" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
                         Launch
                     </button>
                 </div>
@@ -81,10 +81,43 @@
                 </div>
                 `);
                 $.get('$BASE_URL$/getRuns', {}, function(data) {
-                    console.log(data);
-                    runList = JSON.parse(replaceAll(data, "\'", "\""));
-                    console.log(runList)
+                    runList = JSON.parse(data).allRuns;
+                    meta = JSON.parse(data).meta;
+
                     $("#canvas").empty();
+                    if(meta.busy) {
+                        document.getElementById("launchButton").disabled = true;
+                        currentRun = meta.currentRun;
+                        progress = 0;
+                        for(var i = 0; i < runList.length; i++) {
+                            if(runList[i].name === currentRun) {
+                                progress = parseFloat(runList[i].progress);
+                            }
+                        }
+                        $("#canvas").append(`
+                        <div class="container-fluid">
+                            <div class="row">
+                                <div style="text-align: center;" class="col">
+                                    <h4>Currently occupied with run ` + currentRun + `</h4>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-10">
+                                    <div class="progress">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="` + (100 * progress) + `" aria-valuemin="0" aria-valuemax="100" style="width: ` + (100 * progress) + `%"></div>
+                                    </div>
+                                </div>
+                                <div class="col-2">
+                                    <button onClick="cancel()" type="button" class="btn btn-outline-danger">Cancel</button>
+                                </div>
+                            </div>
+                            
+                            </div>
+                        
+                        `);
+                    }
+
+                    $("#canvas").append("<br>");
                     for(var i = 0; i < runList.length; i++) {
                         $("#canvas").append(`
                             <div class="card" style="max-width: 80%; margin: 0 auto;">
@@ -92,14 +125,20 @@
                                 <div class="card-body">
                                     <p class="card-text">
                                         <b>Pattern:</b> ` + runList[i].pattern + `<br>
-                                        <b>Input Accessions:</b> ` + runList[i].input + `<br>
                                         <b>Progress:</b> ` + (parseFloat(runList[i].progress) * 100) + `%<br>
-                                        <b>Time Elapsed:</b> ` + runList[i].totalTime + `
+                                        <b>Peptides Found:</b> ` + runList[i].peptides + `<br>
+                                        <b>Time Elapsed:</b> ` + runList[i].totalTime + ` seconds
                                     </p>
-                                    <div id="plot` + i + `"></div>
+                                    <button class="btn btn-info" type="button" data-toggle="collapse" data-target="#collapsable` + i + `" aria-expanded="false" aria-controls="#collapsable` + i + `">Details</button>
+                                    <div class="collapse" id="collapsable` + i + `">
+                                        <b>Cutoff Rank:</b> ` + runList[i].cutoff + `<br>
+                                        <div id="plot` + i + `"></div>
+                                        <b>Input Accessions:</b> ` + runList[i].input + `<br>
+                                    </div>
                                     <button onclick="deleteRun('` + runList[i].name +`')" type="button" class="btn btn-danger">Delete</button>
                                 </div>
                             </div>
+                            <br>
                         `);
 
                         var trace = {
@@ -109,6 +148,14 @@
                         var data = [trace];
                         Plotly.newPlot('plot' + i, data);
                     }
+                }).fail(function() {
+                    document.getElementById("launchButton").disabled = true;
+                    $("#canvas").append(`
+                    <br>
+                    <div class="container" style="text-align: center;">
+                        <h3>Server currently busy, refresh to try again...</h3>
+                    </div>
+                    `);
                 });
             }
 
@@ -121,8 +168,16 @@
                     runName : name,
                 }, function(data) {
                     console.log(data);
-                    refresh();
                 });
+                refresh();
+            }
+
+            function cancel() {
+                console.log("canceling current run");
+                $.get('$BASE_URL$/cancelRun', {}, function(data) {
+                    console.log(data);
+                });
+                refresh();
             }
 
             function replaceAll(str, find, replace) {
@@ -139,6 +194,7 @@
                 }, function(data) {
                     alert(data);
                 });
+                refresh();
             });
         </script>
     </body>
