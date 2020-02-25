@@ -30,12 +30,9 @@ Then, run the following script to install the required libraries:
 source shellscripts/setup.sh
 ```
 
-#### Web Server Setup:
-Finally, you must update the URL for the site to correspond to the URL that you have access to (i.e. one that can receive and respond to HTTP requests and run this process). To do this, change the instances of **50.116.48.39:8080/** in [Server.py](https://github.com/nathanalam/lassomining/blob/master/Server.py) and [shellscripts/view.sh](https://github.com/nathanalam/lassomining/blob/master/shellscripts/view.sh). 
+## Run the script
 
-To start the server, open up a terminal and type:
+The following is an example command:
 ```
-source shellscripts/view.sh
+esearch -db nucleotide -query "MN695290.1" | efetch -format fasta | python3 lassoMine.py
 ```
-
-Then, go to the URL that you set BASE_URL to - it should be running web server. Otherwise, you may need to work on having the correct server administration credentials.

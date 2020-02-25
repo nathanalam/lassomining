@@ -1,95 +1,214 @@
-'''
-Author: Nathan Alam
-
-Find the precursor peptides within the .faa files in the genome directory, along with
-a ranking and nearest cluster of B and C protein candidates
-'''
-import re
 import sys
 import os
+import Bio
+from Bio.Seq import Seq, reverse_complement, translate
+from Bio.Alphabet import IUPAC
+import re
 import json
 import math
 import pandas as pd
 import sqlite3
 
-PATTERN = 'M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*'
-# PATTERN = 'CC.CGCCC...TGGC.'
-# PATTERN = '.*'
+# Major parameters:
+pattern ="M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*"
+cutoffRank = -100
 
-'''
-Define a function that takes as input the relative path of a FASTA formatted text file, return 
-an object that contains a list of sequence objects. Each sequence object has a description field 
-["description"] and a sequence field ["sequence"].
 
-From http://www.csbio.sjtu.edu.cn/bioinf/virus-multi/example.htm, specification of a FASTA 
-formatted file:
-- The first line of each query protein input format must begin with a greater-than (">") symbol 
-  in the first column. The word following the ">" symbol is the identifier and description of the 
-  sequence, but both are optional.
-- The sequence (in single-character code) begins in a different line and ends if another line 
-  starting with a ">" appears, which indicates the start of another query protein.
-'''
-def readFASTA(name, cleanspace = 0):
-    descriptions = []
-    sequences = []
-    sequenceList = []
-    tempSequences = []     
+## Read as a FASTA file
+descriptions = []
+sequences = []
+sequenceList = []
+tempSequences = []     
+    
+count = -1
+for line in sys.stdin:
         
-    with open(name) as file:
-        count = -1
-        for line in file:
+    if(line[0] == '>'):
+        # if begins with a >, then a description
+        descriptions.append(line[1:].replace('\n', ''))
+        count += 1
+        # skip the first time
+        if count > 0 :
+            # combine the tempSequences into a single string and
+            # add it to sequences
+            newSequence = ' '.join(tempSequences)
+            # now remove all of the whitespaces
+            newSequence = newSequence.replace(' ', '')
+            newSequence = newSequence.replace('\n', '')
             
-            if(line[0] == '>'):
-                # if begins with a >, then a description
-                descriptions.append(line[1:].replace('\n', ''))
-                count += 1
-                # skip the first time
-                if count > 0 :
-                    # combine the tempSequences into a single string and
-                    # add it to sequences
-                    newSequence = ' '.join(tempSequences)
-                    # now remove all of the whitespaces
-                    newSequence = newSequence.replace(' ', '')
-                    newSequence = newSequence.replace('\n', '')
-                    
-                    sequences.append(newSequence)
-                    # refresh the tempSequence list
-                    tempSequences = []
-                    
-                    sequenceList.append({
-                        "description": descriptions[count - 1],
-                        "sequence": sequences[count - 1]
-                    })
-            else:
-                tempSequences.append(line)
-                
-        # combine the tempSequences into a single string and
-        # add it to sequences
-        newSequence = ' '.join(tempSequences)
-        # now remove all of the whitespaces
-        newSequence = newSequence.replace(' ', '')
-        newSequence = newSequence.replace('\n', '')
+            sequences.append(newSequence)
+            # refresh the tempSequence list
+            tempSequences = []
+            
+            sequenceList.append({
+                "description": descriptions[count - 1],
+                "sequence": sequences[count - 1]
+            })
+    else:
+        tempSequences.append(line)
+    
+# combine the tempSequences into a single string and
+# add it to sequences
+newSequence = ' '.join(tempSequences)
+# now remove all of the whitespaces
+newSequence = newSequence.replace(' ', '')
+newSequence = newSequence.replace('\n', '')
 
-        sequences.append(newSequence)
-        # refresh the tempSequence list
-        tempSequences = []
+sequences.append(newSequence)
+# refresh the tempSequence list
+tempSequences = []
+
+sequenceList.append({
+    "description": descriptions[count],
+    "sequence": sequences[count]
+})
+            
+            
+if len(descriptions) != len(sequences):
+    sys.stderr.write("ERROR: Number of descriptions does not match number of sequences")
+    sys.stderr.write("Number of descriptions: " + str(len(descriptions)))
+    sys.stderr.write("Number of sequences: " + str(len(sequences)))
+    sys.exit(1);
+    
+sys.stderr.write("Read " + str(count + 1) + " objects from FASTA file.")
+    
+# Now the sequenceList has the FASTA read objects
+
+# Now, translate the DNA sequences into AAs
         
-        sequenceList.append({
-            "description": descriptions[count],
-            "sequence": sequences[count]
+# takes a three letter codon, and returns the corresponding amino acid or 'X' if unknown
+def translate_codon(codonString):
+    if(not len(codonString) == 3):
+        raise InputError()
+        
+    try:
+        return translate(codonString, to_stop=False, table = 11)
+    except:
+        return 'X'
+
+# An adapter function for the biopython's translate, takes in a DNA sequence and 
+# returns a list of protein sequences. If reading fails, reads each character manually
+# and insert X if unable to translate properly
+def get_orfs(DNAseq):
+    AAList = []
+    
+    codonArr = []
+    seqLen = len(DNAseq) - (len(DNAseq) % 3)
+    seq = ''
+    try:
+        seq = translate(DNAseq[0:seqLen])
+    except:
+        for i in range(0, seqLen, 3):
+            codonArr.append(translate_codon(DNAseq[i:i + 3]))
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": 1,
+        "sequence": seq
+    })
+    
+    codonArr = []
+    seqLen = len(DNAseq) - ((len(DNAseq) - 1) % 3)
+    seq = ''
+    try:
+        seq = translate(DNAseq[1:seqLen])
+    except:
+        for i in range(1, seqLen, 3):
+            codonArr.append(translate_codon(DNAseq[i:i + 3]))
+
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": 2,
+        "sequence": seq
+    })
+    
+    codonArr = []
+    seqLen = len(DNAseq) - ((len(DNAseq) - 2) % 3)
+    seq = ''
+    try:
+        seq = translate(DNAseq[2:seqLen])
+    except:
+        for i in range(2, seqLen, 3):
+            codonArr.append(translate_codon(DNAseq[i:i + 3]))
+
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": 3,
+        "sequence": seq
+    })
+    
+    backwards_dna = reverse_complement(DNAseq)
+    codonArr = []
+    seqLen = len(backwards_dna) - (len(backwards_dna) % 3)
+    seq = ''
+    try:
+        seq = translate(backwards_dna[0:seqLen])
+    except:
+        for i in range(0, seqLen, 3):
+            codonArr.append(translate_codon(backwards_dna[i:i + 3]))
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": -1,
+        "sequence": seq
+    })
+    
+    codonArr = []
+    seqLen = len(backwards_dna) - ((len(backwards_dna) - 1) % 3)
+    seq = ''
+    try:
+        seq = translate(backwards_dna[1:seqLen])
+    except:
+        for i in range(1, seqLen, 3):
+            codonArr.append(translate_codon(backwards_dna[i:i + 3]))
+
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": -2,
+        "sequence": seq
+    })
+    
+    codonArr = []
+    seqLen = len(backwards_dna) - ((len(backwards_dna) - 2) % 3)
+    seq = ''
+    try:
+        seq = translate(backwards_dna[2:seqLen])
+    except:
+        for i in range(2, seqLen, 3):
+            codonArr.append(translate_codon(backwards_dna[i:i + 3]))
+
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": -3,
+        "sequence": seq
+    })
+    
+    return AAList   
+
+'''
+Now, convert each of the FNA files found in ALLDIRNAMES into corresponding FAA files
+'''
+
+DNAseqs = []
+seqDescriptions = []
+
+for fastaobj in sequenceList:
+    DNAseqs.append(fastaobj["sequence"])
+    seqDescriptions.append(fastaobj["description"])
+            
+entries = []
+for i in range(0, len(DNAseqs)):
+    sys.stderr.write("converting " + str(len(DNAseqs[i])) + " base pairs from " + seqDescriptions[i])
+    aalist = get_orfs(DNAseqs[i])
+    sys.stderr.write("created " + str(len(aalist)) + " peptide sequences from " + seqDescriptions[i])
+    for e in range(0, len(aalist)):
+        entries.append({
+            "sequence": aalist[e]["sequence"],
+            "description": str(seqDescriptions[i] + " - ORF " + str(aalist[e]["ORF"])) 
         })
-                
-                
-    if len(descriptions) != len(sequences):
-        print("ERROR: Number of descriptions does not match number of sequences")
-        print("Number of descriptions: " + str(len(descriptions)))
-        print("Number of sequences: " + str(len(sequences)))
-        sys.exit(1);
         
-    print("Read " + str(count + 1) + " objects from FASTA file " + name)
-        
-    return sequenceList
 
+
+
+# Now take the translations in entries
 
 '''
 Define a method that lets us take a sequence and identify B and C proteins from it. 
@@ -104,8 +223,8 @@ def mastSearch(sequence, memeDirB, memeDirC):
         file.write(sequence)
         file.close()
 
-    os.system('export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH;mast -hit_list ' + memeDirB + ' tempseq.txt > tempoutB.txt')
-    os.system('export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH;mast -hit_list ' + memeDirC + ' tempseq.txt > tempoutC.txt')
+    os.system('mast -hit_list ' + memeDirB + ' tempseq.txt > tempoutB.txt')
+    os.system('mast -hit_list ' + memeDirC + ' tempseq.txt > tempoutC.txt')
 
     with open("tempoutB.txt", "r") as file:
         inlines = file.readlines()
@@ -129,8 +248,8 @@ def mastSearch(sequence, memeDirB, memeDirC):
                 }
                 Bproteins.append(newB)
             except:
-                print("error in parsing line - " + line)
-                print("params: " + str(params))
+                sys.stderr.write("error in parsing line - " + line)
+                sys.stderr.write("params: " + str(params))
         file.close()
     with open("tempoutC.txt", "r") as file:
         inlines = file.readlines()
@@ -154,8 +273,8 @@ def mastSearch(sequence, memeDirB, memeDirC):
                 }
                 Cproteins.append(newC)
             except:
-                print("error in parsing line - " + line)
-                print("params: " + str(params))
+                sys.stderr.write("error in parsing line - " + line)
+                sys.stderr.write("params: " + str(params))
         file.close()
 
     os.remove("tempseq.txt")
@@ -203,7 +322,7 @@ precursor peptides matching the regular expression pattern at the top of the scr
 The function returns a list of matched proteins, which have a specific sequence, ORF, 
 nearest B/C cluster, and range within the overall sequence.
 '''
-def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
+def patternMatch(sequenceORFs, pattern, cutoffRank):
     Aproteins = []
     Bproteins = []
     Cproteins = []
@@ -356,8 +475,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
                         "closestCs": closestCs[0:10],
                         "ORF": ORFs[ORF],
                         "genome": descriptors[1] + " " + descriptors[2],
-                        "index": descriptors[0],
-                        "runName": runName
+                        "index": descriptors[0]
                         ## "overallString": match.string
                     })
                 
@@ -365,109 +483,12 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
     return Aproteins
 
 
-def scanGenomes(runName, pattern, cutoffRank):
-    conn = sqlite3.connect('matches.db')
-
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
-             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestBs text, closestCs text)''')
-
-    DIRNAMES = []
-    for dirname in os.listdir("genomes"):
-        if (dirname.find(".") != -1):
-            if(dirname[len(dirname) - 3:] == "faa"):
-                DIRNAMES.append("genomes/" + dirname)
-        else:
-            for filename in os.listdir("genomes/" + dirname):
-                if(filename[len(filename) - 3:] == "faa"):
-                    DIRNAMES.append("genomes/" + dirname + "/" + filename)
-
-    matchedProteins = []
-    for filename in DIRNAMES:
-        readSequences = readFASTA(filename)
-        if(not (len(readSequences) % 6) == 0):
-            print("Error: sequence in file " + filename + " does not have multiple of 6 sequences")
-            print("Instead, it has " + str(len(readSequences)))
-            raise RuntimeError
-        for i in range(0, len(readSequences), 6):
-            buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName, cutoffRank)
-            for peptide in buffer:
-                c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                    [peptide['sequence'],
-                    peptide['searchRange'][0],
-                    peptide['searchRange'][1],
-                    peptide['overallLength'],
-                    peptide['rank'],
-                    peptide['ORF'],
-                    peptide['genome'],
-                    peptide['index'],
-                    peptide['runName'],
-                    json.dumps(str(peptide['closestBs'])),
-                    json.dumps(str(peptide['closestCs']))]
-                )
-            
-            matchedProteins.extend(buffer)
-
-    conn.commit()
-    conn.close()
-    
-    return matchedProteins
-
-def mine(accession, runName, pattern, cutoffRank):
-
-    accession = accession.strip()
-    ## download the genome associated with the accession number
-    print("Generating URL File downloads for genomes")
-    if(".gz" in accession[len(accession) - 3:]):
-        print("found a direct zip file address")
-        os.system('echo "' + accession +'" >> fileurls.txt')
-    else: 
-        print("attempting assembly search")
-        str1 = 'esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt'
-        print(str1)
-        os.system(str1)
-        print("attempting nucleotide search")
-        str1 = 'esearch -db nucleotide -query "' + accession + '" | efetch -format fasta >> genomes/' + accession + '.fna'
-        print(str1)
-        os.system(str1)
-        # os.system('esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt')
-
-    print("Downloading files using wget into genomes folder")
-    os.system("wget --directory-prefix=genomes $( cat fileurls.txt )")
-
-    print("Unzipping downloaded files")
-    os.system("gunzip -r genomes")
-
-    os.system("rm fileurls.txt")
-
-    ## translate the downloaded file into amino acid sequence
-    print("translating accessions")
-    os.system("python3 Translator.py")
-
-    # launch the actual mining of the translated genomes
-    print("scanning genomes for lassos")
-    results = scanGenomes(runName, pattern, cutoffRank)
-    count = len(results)
-    print("found " + str(count) + " peptides from " + accession)
-
-    ## clear the genomes subdirectory
-    print("clearing the genomes directory...")
-    ALLDIRNAMES = []
-    for dirname in os.listdir("genomes"):
-        ## if a regular file, just add to directory
-        if (dirname.find(".") != -1):
-            ALLDIRNAMES.append("genomes/" + dirname)
-        else:
-            for filename in os.listdir("genomes/" + dirname):
-                ALLDIRNAMES.append("genomes/" + dirname + "/" + filename)
-    for dirname in ALLDIRNAMES:
-        os.remove(dirname)
-
-    return count
+matchedProteins = []
 
 
-    ### Command line logic
+for i in range(0, len(entries), 6):
+    buffer = patternMatch(entries[i: i + 6], pattern, cutoffRank) 
+    matchedProteins.extend(buffer)
 
-### Command line logic for calling this file directly
-
-print(sys.argv)
+## Matched proteins has all of the information associated with the found lasso peptides
+print(json.dumps(matchedProteins))
