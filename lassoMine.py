@@ -491,4 +491,14 @@ for i in range(0, len(entries), 6):
     matchedProteins.extend(buffer)
 
 ## Matched proteins has all of the information associated with the found lasso peptides
-print(json.dumps(matchedProteins))
+# print(json.dumps(matchedProteins))
+
+## Output the matched proteins in a text format
+for protein in matchedProteins:
+    print("> " + protein["sequence"])
+    print("Rank:" + str(protein["rank"]))
+    print(protein["genome"])
+    print(protein["description"])
+    print("ORF: " + str(protein["ORF"]))
+    print("Range: " + str(protein["searchRange"]))
+    print()
