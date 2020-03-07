@@ -501,4 +501,7 @@ for protein in matchedProteins:
     print(protein["description"])
     print("ORF: " + str(protein["ORF"]))
     print("Range: " + str(protein["searchRange"]))
-    print()
+    index = protein["description"].split()[0]
+    start = protein["searchRange"][0]
+    end = protein["searchRange"][1]
+    print("https://www.ncbi.nlm.nih.gov/nuccore/" + index + "?report=genbank&from=" + str(start) + "&to=" + str(end))
