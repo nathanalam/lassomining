@@ -19,10 +19,10 @@ Open a terminal and type the following commands in a terminal:
 ```
 git clone https://github.com/nathanalam/genomemining.git
 pip3 install virtualenv
-python3 -m venv genomemining
+python3 -m venv lassomining
 cd genomemining
 ```
-The command line should now have a (genomemining) tag behind it.
+The command line should now have a (lassomining) tag behind it.
 
 #### Python libraries:
 Then, run the following script to install the required libraries:

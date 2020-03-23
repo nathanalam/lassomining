@@ -6,6 +6,7 @@ import os
 from Miner import scanGenomes, mine
 import time
 import sqlite3
+import re
 
 BASE_URL = "http://50.116.48.39:8080"
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + "/genomemining/"
@@ -19,15 +20,22 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'),]
 DEBUG=False
 
+# regular expression function for regular expression search
+def regexp(expr, item):
+    reg = re.compile(expr)
+    return reg.search(item) is not None
+
+# read peptide objects from the 'matches.db' file
 def readPeptides(sequence, genome, start, end, runName, maxNum):
-    
     lassopeptides = []
 
     conn = sqlite3.connect('matches.db')
+    conn.create_function("REGEXP", 2, regexp)
     c = conn.cursor()
+    
     # get all lasso peptides, sorted by rank
     selectionString = """SELECT * FROM lassopeptides WHERE
-    sequence LIKE '%""" + sequence + """%' AND
+    sequence REGEXP '""" + sequence + """' AND
     genome LIKE '%""" + genome + """%' AND
     start >= """ + str(start) + """ AND
     end <= """ + str(end) + """ AND
@@ -88,17 +96,28 @@ def specificPeptides(request):
     if not end:
         end = 1000000000000000
 
+    if (sequence is None) or (len(sequence) is 0):
+        sequence = ".*"
+    if (maxNum is None) or (len(maxNum) is 0):
+        maxNum = 10
     returnList = readPeptides(sequence, genome, start, end, runName, maxNum)
 
     print("query returned " + str(len(returnList)))
     return HttpResponse(json.dumps(returnList), content_type='text/json')
 
 def launch(request):
-    raw = request.GET.get("accessions")
-    accessions = raw.split(",")
-    pattern = request.GET.get("pattern")
-    runName = request.GET.get("runName")
-    cutoffRank = float(request.GET.get("cutoffRank"))
+    
+    try:
+        runName = request.POST.get("runName")
+        pattern = request.POST.get("pattern")     
+        cutoffRank = float(request.POST.get("cutoffRank"))
+        raw = request.POST.get("accessions")
+        print(len(raw))
+        accessions = raw.split(",")
+        
+    except Exception as e:
+        print("Could not read responses due to " + str(e))
+        return(HttpResponse("Improper POST input", content_type="text/plain"))
 
     if os.path.exists("hold.txt"):
         occupant = ""
@@ -198,19 +217,22 @@ def about(request):
 def getRuns(request):
     allRuns = []
     for dirname in os.listdir("runs"):
-        with open("runs/" + dirname, 'r') as file:
-            particularRun = json.loads(file.read())
-            ranks = []
+        try: 
+            with open("runs/" + dirname, 'r') as file:
+                particularRun = json.loads(file.read())
+                ranks = []
 
-            conn = sqlite3.connect('matches.db')
-            c = conn.cursor()
-            # get all lasso peptides, sorted by rank
-            for row in c.execute("SELECT rank FROM lassopeptides WHERE runName LIKE '" + particularRun["name"] + "%' ORDER BY 1 DESC"):
-                ranks.append(row[0])
-            c.close()
-            particularRun["ranks"] = ranks
-            allRuns.append(particularRun)
-
+                conn = sqlite3.connect('matches.db')
+                c = conn.cursor()
+                # get all lasso peptides, sorted by rank
+                for row in c.execute("SELECT rank FROM lassopeptides WHERE runName LIKE '" + particularRun["name"] + "%' ORDER BY 1 DESC"):
+                    ranks.append(row[0])
+                c.close()
+                particularRun["ranks"] = ranks
+                allRuns.append(particularRun)
+        except:
+            # return HttpResponse("Failed to read " + dirname, content_type="text/plain")
+            print("Failed to read " + dirname)
     currentRun = ""
     busy = False
     if os.path.exists("hold.txt"):

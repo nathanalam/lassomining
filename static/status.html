@@ -81,6 +81,9 @@
                 </div>
                 `);
                 $.get('$BASE_URL$/getRuns', {}, function(data) {
+                    if(data.length <= 0) {
+                        return;
+                    }
                     runList = JSON.parse(data).allRuns;
                     meta = JSON.parse(data).meta;
 
@@ -186,7 +189,7 @@
 
             $("#submit").click(function() {
                 alert("Run " + $("#run").val() + " has begun! Please wait, and refresh the page");
-                $.get('$BASE_URL$/launchrun', { 
+                $.post('$BASE_URL$/launchrun', { 
                     accessions: $("#acc").val(),
                     pattern: $("#pat").val(),
                     runName: $("#run").val(),

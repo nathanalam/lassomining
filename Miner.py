@@ -430,6 +430,10 @@ def mine(accession, runName, pattern, cutoffRank):
         str1 = 'esearch -db nucleotide -query "' + accession + '" | efetch -format fasta >> genomes/' + accession + '.fna'
         print(str1)
         os.system(str1)
+        print("attempting genome search")
+        str1 = 'esearch -db genome -query "' + accession + '" | efetch -format fasta >> genomes/' + accession + '.fna'
+        print(str1)
+        os.system(str1)
         # os.system('esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt')
 
     print("Downloading files using wget into genomes folder")
