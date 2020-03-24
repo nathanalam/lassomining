@@ -9,7 +9,7 @@ def makeMeme(protSeq, memeName):
             print("writing " + str(seq))
             f.write(">" + seq[0] + "\n" + seq[1] + "\n\n")
     
-    command = "meme -nmotifs " + str(len(protSeq)) + " -maxw 25 modelProteins/" + memeName + ".faa -o motifs/" + memeName
+    command = "/root/meme/bin/meme -nmotifs " + str(len(protSeq)) + " -maxw 25 modelProteins/" + memeName + ".faa -o motifs/" + memeName
     print(command)
     os.system(command)
 

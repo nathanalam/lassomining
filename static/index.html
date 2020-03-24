@@ -200,7 +200,7 @@
                         updateRange(peptides[i].end);
 
 
-                        closestBs = JSON.parse(replaceAll(peptides[i].closestBs, "\'", "\""));
+                        closestBs = JSON.parse(replaceAll(peptides[i].closestProtLists, "\'", "\""))[0];
 
                         var otherBprots = [];
                         for(var e = 0; e < closestBs.length; e++) {
@@ -222,7 +222,7 @@
                             updateRange(closestBs[e]["end"]);
                         }
 
-                        closestCs = JSON.parse(replaceAll(peptides[i].closestCs, "\'", "\""));
+                        closestCs = JSON.parse(replaceAll(peptides[i].closestProtLists, "\'", "\""))[1];
 
                         var otherCprots = [];
                         for(var e = 0; e < closestCs.length; e++) {
@@ -244,9 +244,32 @@
                             updateRange(closestCs[e]["end"]);
                         }
 
+                        closestIs = JSON.parse(replaceAll(peptides[i].closestProtLists, "\'", "\""))[2];
+
+                        var otherIprots = [];
+                        for(var e = 0; e < closestIs.length; e++) {
+                            var newProt = {
+                                x: [closestIs[e]["start"], closestIs[e]["end"]],
+                                y: [7, 7],
+                                type: 'line',
+                                name: "C" + e,
+                                text: closestIs[e]["motif"] + "<br>P-value: " + closestIs[e]["p-value"],
+                                marker: {
+                                    color: 'rgb(255,61,0)'
+                                },
+                                line: {
+                                    color: 'rgb(255,61,0)'
+                                }
+                            };
+                            otherIprots.push(newProt);
+                            updateRange(closestIs[e]["start"]);
+                            updateRange(closestIs[e]["end"]);
+                        }
+
                         var plotdata = [sequence, Aprot];
                         otherBprots.forEach(element => plotdata.push(element));
                         otherCprots.forEach(element => plotdata.push(element));
+                        otherIprots.forEach(element => plotdata.push(element));
 
                         Plotly.newPlot('plot' + i, plotdata, {
                                 xaxis: {

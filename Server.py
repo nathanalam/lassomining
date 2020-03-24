@@ -4,6 +4,7 @@ from django.http import HttpResponse
 import json
 import os
 from Miner import scanGenomes, mine
+from Motifmaker import makeMeme
 import time
 import sqlite3
 import re
@@ -54,8 +55,8 @@ def readPeptides(sequence, genome, start, end, runName, maxNum):
             "genome": row[6],
             "index": row[7],
             "runName": row[8],
-            "closestBs": json.loads(row[9]),
-            "closestCs": json.loads(row[10]),
+            "closestProts": json.loads(row[9]),
+            "closestProtLists": json.loads(row[10]),
         })
     c.close()
     return lassopeptides
@@ -114,6 +115,9 @@ def launch(request):
         raw = request.POST.get("accessions")
         print(len(raw))
         accessions = raw.split(",")
+        motifName = request.POST.get("motifName")
+        motifInput = request.POST.get("motifs").split(";")
+
         
     except Exception as e:
         print("Could not read responses due to " + str(e))
@@ -165,6 +169,15 @@ def launch(request):
                 file.write(accession + "\n")
         
         f = open('accessions.txt')
+
+        # create the new motifs with meme
+        seeq = []
+
+        for p in motifInput:
+            pair = p.split(",")
+            seeq.append((pair[0], pair[1]))
+        makeMeme(seeq, motifName)
+
         accession = f.readline()
         while accession:
             peptideCount += mine(accession, runName, pattern, cutoffRank)
@@ -183,6 +196,8 @@ def launch(request):
         os.remove("accessions.txt")
     if os.path.exists("hold.txt"):
         os.remove("hold.txt")
+    if os.path.exists("motifs/" + memeName + "Results.txt"):
+        os.remove("motifs/" + memeName + "Results.txt")
 
     return(HttpResponse(returnText, content_type="text/plain"))
 

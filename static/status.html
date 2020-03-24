@@ -50,6 +50,20 @@
 
                                 <div class="input-group mb-3">
                                     <div class="input-group-prepend">
+                                        <span class="input-group-text" id="basic-addon1">Motif Name</span>
+                                    </div>
+                                    <input id="motname" name="motname" type="text" class="form-control" value="Test" aria-label="Motif Name" aria-describedby="basic-addon1">
+                                </div>
+
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text" id="basic-addon1">Motifs</span>
+                                    </div>
+                                    <input id="motifs" name="motifs" type="text" class="form-control" value="sequenceName, sequence; sequenceName2, sequence2" aria-label="Motifs" aria-describedby="basic-addon1">
+                                </div>
+
+                                <div class="input-group mb-3">
+                                    <div class="input-group-prepend">
                                         <span class="input-group-text" id="basic-addon1">Run Name</span>
                                     </div>
                                     <input id="run" name="run" type="text" class="form-control" placeholder="Name this run" aria-label="Name" aria-describedby="basic-addon1">
@@ -193,7 +207,9 @@
                     accessions: $("#acc").val(),
                     pattern: $("#pat").val(),
                     runName: $("#run").val(),
-                    cutoffRank: $("#minrank").val()
+                    cutoffRank: $("#minrank").val(),
+                    motifName: $("#motname").val(),
+                    motifs: $("#motifs").val()
                 }, function(data) {
                     alert(data);
                 });

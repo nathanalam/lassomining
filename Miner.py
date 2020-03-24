@@ -92,77 +92,55 @@ def readFASTA(name, cleanspace = 0):
 
 
 '''
-Define a method that lets us take a sequence and identify B and C proteins from it. 
+Define a method that lets us take a sequence and identify motif matches from it. 
 Requires the sequence and the directory of the pre-generated MEME motif files as input, 
 and returns a tuple containing the B matches and the C matches.
 '''
-def mastSearch(sequence, memeDirB, memeDirC):
-    Bproteins = []
-    Cproteins = []
+def mastSearch(sequence, memeDir):
+    motifMatches = []
     with open("tempseq.txt", "w") as file:
         file.write("> " + "temporary" + "\n")
         file.write(sequence)
         file.close()
 
-    os.system('export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH;mast -hit_list ' + memeDirB + ' tempseq.txt > tempoutB.txt')
-    os.system('export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH;mast -hit_list ' + memeDirC + ' tempseq.txt > tempoutC.txt')
+    for dir in os.listdir(memeDir):
+        command = '/root/meme/bin/mast -hit_list ' + memeDir + "/" + dir + ' tempseq.txt > tempout' + dir
+        # print(command)
+        os.system(command)
 
-    with open("tempoutB.txt", "r") as file:
-        inlines = file.readlines()
-        inlines = inlines[2:len(inlines) - 1]
-
-        
-        for line in inlines:
-            # remove ending newline character
-            line = line[:len(line) - 1]
-            params = line.split(' ')
-            while('' in params) : 
-                params.remove('') 
-            try:
-                newB = {
-                    "strand" : int(params[1]),
-                    "motif" : params[2],
-                    "start" : int(params[4]),
-                    "end" : int(params[5]),
-                    "score" : float(params[6]),
-                    "p-value" : float(params[7])
-                }
-                Bproteins.append(newB)
-            except:
-                print("error in parsing line - " + line)
-                print("params: " + str(params))
-        file.close()
-    with open("tempoutC.txt", "r") as file:
-        inlines = file.readlines()
-        inlines = inlines[2:len(inlines) - 1]
+    for dir in os.listdir(memeDir):
+        matchedProts = []
+        with open("tempout" + dir, "r") as file:
+            inlines = file.readlines()
+            inlines = inlines[2:len(inlines) - 1]
 
         
-        for line in inlines:
-            # remove ending newline character
-            line = line[:len(line) - 1]
-            params = line.split()
-            while('' in params) : 
-                params.remove('') 
-            try:
-                newC = {
-                    "strand" : int(params[1]),
-                    "motif" : params[2],
-                    "start" : int(params[4]),
-                    "end" : int(params[5]),
-                    "score" : float(params[6]),
-                    "p-value" : float(params[7])
-                }
-                Cproteins.append(newC)
-            except:
-                print("error in parsing line - " + line)
-                print("params: " + str(params))
-        file.close()
+            for line in inlines:
+                # remove ending newline character
+                line = line[:len(line) - 1]
+                params = line.split(' ')
+                while('' in params) : 
+                    params.remove('') 
+                try:
+                    newProt = {
+                        "strand" : int(params[1]),
+                        "motif" : params[2],
+                        "start" : int(params[4]),
+                        "end" : int(params[5]),
+                        "score" : float(params[6]),
+                        "p-value" : float(params[7])
+                    }
+                    matchedProts.append(newProt)
+                except:
+                    print("error in parsing line - " + line)
+                    print("params: " + str(params))
+            file.close()
+            os.remove("tempout" + dir)
+            motifMatches.append(matchedProts)
 
     os.remove("tempseq.txt")
-    os.remove("tempoutB.txt")
-    os.remove("tempoutC.txt")
 
-    return (Bproteins, Cproteins)
+    return motifMatches
 
 ### Some helper functions
 def isOverlapping(start1, end1, start2, end2):
@@ -205,36 +183,31 @@ nearest B/C cluster, and range within the overall sequence.
 '''
 def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
     Aproteins = []
-    Bproteins = []
-    Cproteins = []
+    AuxProteins = []
+
+    for i in range(0, len(os.listdir("motifs"))):
+        AuxProteins.append([])
     
     
-    ## generate all of the Bs and Cs, and label them by ORF
+    ## generate all motif match sets to go into AuxProteins
     ORFs = [1, 2, 3, -1, -2, -3]
     ORF = 0
     for pair in sequenceORFs:
         overallSequence = pair["sequence"]
-        pair = mastSearch(overallSequence, "motifs/memeb.txt", "motifs/memec.txt")
+        motifMatches = mastSearch(overallSequence, "motifs")
         
-        newBs = pair[0]
-        newCs = pair[1]
-        
-        for b in newBs:
-            b["ORF"] = ORFs[ORF]
-            prange = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, b["start"] * 3, b["end"] * 3)
-            b["start"] = prange[0]
-            b["end"] = prange[1]
-            
-            
-        for c in newCs:
-            c["ORF"] = ORFs[ORF]
-            prange = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, c["start"] * 3, c["end"] * 3)
-            c["start"] = prange[0]
-            c["end"] = prange[1]
-        
-        Bproteins.extend(newBs)
-        Cproteins.extend(newCs)
-        
+        index = 0
+        for matchSet in motifMatches:
+            # adjust the matchSet for the current ORF
+            for b in matchSet:
+                b["ORF"] = ORFs[ORF]
+                prange = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, b["start"] * 3, b["end"] * 3)
+                b["start"] = prange[0]
+                b["end"] = prange[1]
+
+            AuxProteins[index].extend(matchSet)
+            index += 1
+    
         ORF += 1
         
     ## create all of the cluster points, and give them a score
@@ -257,22 +230,28 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
                 indices = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, indices[0] * 3, indices[1] * 3)
 
                 # make the ranking calculation and find closest B and C
-                rank = 0
                 start = indices[0]
                 end = indices[1]
                 def sortFunct(prot):
                     return (prot["start"] - start) ** 2;
-
-                term1 = 1
-                closest = float("inf")
-                closestB = None
-                closestBs = []
                 
-                if len(Cproteins) != 0:
+                rank = 1
+
+                closestProts = []
+                closestProtLists = []
+
+                
+                for IProteins in AuxProteins:
+                    if (rank is 0):
+                        continue
+                    termE = 1
+                    closest = float("inf")
+                    closestI = None
+                    closestIs = []
 
                     # create a symbol table linking motifs to arrays of proteins
                     motifTable = {}
-                    for prot in Bproteins:
+                    for prot in IProteins:
                         if isOverlapping(start, end, prot["start"], prot["end"]):
                             # print(str(start) + "-" + str(end) + " |B at " + str(prot["start"]) + "-" + str(prot["end"]))
                             # print(prot)
@@ -280,7 +259,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
                         if not prot["motif"] in motifTable:
                             motifTable[prot["motif"]] = []
                         motifTable[prot["motif"]].append(prot)
-                        closestBs.append(prot)
+                        closestIs.append(prot)
 
                     # iterate over each symbol table value to get a summation, multiply those together
                     for motif in motifTable:
@@ -291,50 +270,16 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
                             diffsquared = (prot["start"] - start) ** 2
                             diffsquared = diffsquared * prot["p-value"]
                             if diffsquared < closest:
-                                closestB = prot
+                                closestI = prot
                                 closest = diffsquared
                             termi += (1.0 / float(diffsquared))
                         
-                        term1 = term1 * termi
-                            
-                closestBs.sort(key=sortFunct)
+                        termE = termE * termi
+                    rank = rank * termE
+                    closestIs.sort(key=sortFunct)
+                    closestProts.append(closestI)
+                    closestProtLists.append(closestIs)
 
-                term2 = 1
-                closest = float("inf")
-                closestC = None
-                closestCs = []
-                if len(Bproteins) != 0:
-
-                    # create a symbol table linking motifs to arrays of proteins
-                    motifTable = {}
-                    for prot in Cproteins:
-                        if isOverlapping(start, end, prot["start"], prot["end"]):
-                            # print(str(start) + "-" + str(end) + " |B at " + str(prot["start"]) + "-" + str(prot["end"]))
-                            # print(prot)
-                            continue
-                        if not prot["motif"] in motifTable:
-                            motifTable[prot["motif"]] = []
-                        motifTable[prot["motif"]].append(prot)
-                        closestCs.append(prot)
-
-                    # iterate over each symbol table value to get a summation, multiply those together
-                    for motif in motifTable:
-                            
-                        termi = 0
-                        for prot in motifTable[motif]:
-                            
-                            diffsquared = (prot["start"] - start) ** 2
-                            diffsquared = diffsquared * prot["p-value"]
-                            if diffsquared < closest:
-                                closestC = prot
-                                closest = diffsquared
-                            termi += (1.0 / float(diffsquared))
-                        
-                        term2 = term2 * termi
-
-                closestCs.sort(key=sortFunct)
-
-                rank = term1 * term2
                 if rank <= 0:
                     continue
                 else:
@@ -350,10 +295,8 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
                         "searchRange": indices,
                         "overallLength": len(overallSequence) * 3,
                         "rank": rank,
-                        "closestB": closestB,
-                        "closestBs": closestBs[0:10],
-                        "closestC": closestC,
-                        "closestCs": closestCs[0:10],
+                        "closestProts": closestProts,
+                        "closestProtLists": closestProtLists[0:10],
                         "ORF": ORFs[ORF],
                         "genome": descriptors[1] + " " + descriptors[2],
                         "index": descriptors[0],
@@ -370,7 +313,7 @@ def scanGenomes(runName, pattern, cutoffRank):
 
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
-             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestBs text, closestCs text)''')
+             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestProts text, closestProtLists text)''')
 
     DIRNAMES = []
     for dirname in os.listdir("genomes"):
@@ -402,8 +345,8 @@ def scanGenomes(runName, pattern, cutoffRank):
                     peptide['genome'],
                     peptide['index'],
                     peptide['runName'],
-                    json.dumps(str(peptide['closestBs'])),
-                    json.dumps(str(peptide['closestCs']))]
+                    json.dumps(str(peptide['closestProts'])),
+                    json.dumps(str(peptide['closestProtLists']))]
                 )
             
             matchedProteins.extend(buffer)
@@ -454,7 +397,7 @@ def mine(accession, runName, pattern, cutoffRank):
     count = len(results)
     print("found " + str(count) + " peptides from " + accession)
 
-    ## clear the genomes subdirectory
+     ## clear the genomes subdirectory
     print("clearing the genomes directory...")
     ALLDIRNAMES = []
     for dirname in os.listdir("genomes"):
