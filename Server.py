@@ -176,7 +176,7 @@ def launch(request):
         for p in motifInput:
             pair = p.split(",")
             seeq.append((pair[0], pair[1]))
-        makeMeme(seeq, motifName)
+        makeMeme(seeq, motifName, 3)
 
         accession = f.readline()
         while accession:
