@@ -125,3 +125,5 @@ tcl
 
 # mypy
 .mypy_cache/
+
+!runs
