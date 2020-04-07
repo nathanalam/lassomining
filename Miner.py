@@ -128,7 +128,8 @@ def mastSearch(sequence, memeDir):
                         "start" : int(params[4]),
                         "end" : int(params[5]),
                         "score" : float(params[6]),
-                        "p-value" : float(params[7])
+                        "p-value" : float(params[7]),
+                        "memeDir": dir[0:len(dir) - 11]
                     }
                     matchedProts.append(newProt)
                 except:

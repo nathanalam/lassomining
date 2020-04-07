@@ -199,77 +199,37 @@
                         updateRange(peptides[i].start);
                         updateRange(peptides[i].end);
 
+                        closestProteins = JSON.parse(replaceAll(peptides[i].closestProtLists, "\'", "\""));
 
-                        closestBs = JSON.parse(replaceAll(peptides[i].closestProtLists, "\'", "\""))[0];
-
-                        var otherBprots = [];
-                        for(var e = 0; e < closestBs.length; e++) {
-                            var newProt = {
-                                x: [closestBs[e]["start"], closestBs[e]["end"]],
-                                y: [5, 5],
-                                type: 'line',
-                                name: "B" + e,
-                                text: closestBs[e]["motif"] + "<br>P-value: " + closestBs[e]["p-value"],
-                                marker: {
-                                    color: 'rgb(249,168,37)'
-                                },
-                                line: {
-                                    color: 'rgb(249,168,37)'
-                                }
-                            };
-                            otherBprots.push(newProt);
-                            updateRange(closestBs[e]["start"]);
-                            updateRange(closestBs[e]["end"]);
-                        }
-
-                        closestCs = JSON.parse(replaceAll(peptides[i].closestProtLists, "\'", "\""))[1];
-
-                        var otherCprots = [];
-                        for(var e = 0; e < closestCs.length; e++) {
-                            var newProt = {
-                                x: [closestCs[e]["start"], closestCs[e]["end"]],
-                                y: [7, 7],
-                                type: 'line',
-                                name: "C" + e,
-                                text: closestCs[e]["motif"] + "<br>P-value: " + closestCs[e]["p-value"],
-                                marker: {
-                                    color: 'rgb(255,61,0)'
-                                },
-                                line: {
-                                    color: 'rgb(255,61,0)'
-                                }
-                            };
-                            otherCprots.push(newProt);
-                            updateRange(closestCs[e]["start"]);
-                            updateRange(closestCs[e]["end"]);
-                        }
-
-                        closestIs = JSON.parse(replaceAll(peptides[i].closestProtLists, "\'", "\""))[2];
-
-                        var otherIprots = [];
-                        for(var e = 0; e < closestIs.length; e++) {
-                            var newProt = {
-                                x: [closestIs[e]["start"], closestIs[e]["end"]],
-                                y: [7, 7],
-                                type: 'line',
-                                name: "C" + e,
-                                text: closestIs[e]["motif"] + "<br>P-value: " + closestIs[e]["p-value"],
-                                marker: {
-                                    color: 'rgb(255,61,0)'
-                                },
-                                line: {
-                                    color: 'rgb(255,61,0)'
-                                }
-                            };
-                            otherIprots.push(newProt);
-                            updateRange(closestIs[e]["start"]);
-                            updateRange(closestIs[e]["end"]);
+                        protPlots = []
+                        for(var j = 0; j < closestProteins.length; j++) {
+                            closestIs = closestProteins[j]
+                            var otherIprots = [];
+                            for(var e = 0; e < closestIs.length; e++) {
+                                var newProt = {
+                                    x: [closestIs[e]["start"], closestIs[e]["end"]],
+                                    y: [5 + (2 * j), 5 + (2 * j)],
+                                    type: 'line',
+                                    name: closestIs[e]["memeDir"] + ": #" + e,
+                                    text: closestIs[e]["motif"] + "<br>P-value: " + closestIs[e]["p-value"],
+                                    marker: {
+                                        color: 'rgb(249,168,37)'
+                                    },
+                                    line: {
+                                        color: 'rgb(249,168,37)'
+                                    }
+                                };
+                                otherIprots.push(newProt);
+                                updateRange(closestIs[e]["start"]);
+                                updateRange(closestIs[e]["end"]);
+                            }
+                            protPlots.push(otherIprots)
                         }
 
                         var plotdata = [sequence, Aprot];
-                        otherBprots.forEach(element => plotdata.push(element));
-                        otherCprots.forEach(element => plotdata.push(element));
-                        otherIprots.forEach(element => plotdata.push(element));
+                        for(var e = 0; e < protPlots.length; e++) {
+                            protPlots[e].forEach(element => plotdata.push(element))
+                        }
 
                         Plotly.newPlot('plot' + i, plotdata, {
                                 xaxis: {

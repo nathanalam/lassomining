@@ -19,7 +19,7 @@ ROOT_URLCONF = __name__
 ALLOWED_HOSTS = [BASE_URL[7:], BASE_URL[7:len(BASE_URL) - 5], BASE_DIR]
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'),]
-DEBUG=False
+DEBUG=True
 
 # regular expression function for regular expression search
 def regexp(expr, item):
@@ -113,10 +113,22 @@ def launch(request):
         pattern = request.POST.get("pattern")     
         cutoffRank = float(request.POST.get("cutoffRank"))
         raw = request.POST.get("accessions")
-        print(len(raw))
         accessions = raw.split(",")
-        motifName = request.POST.get("motifName")
-        motifInput = request.POST.get("motifs").split(";")
+        numMemes = int(request.POST.get("motifInputs"))
+        memeJobs = []
+        for i in range(1, numMemes + 1):
+            motifName = request.POST.get("motifName" + str(i))
+            motifSeqs = request.POST.get("sequences" + str(i)).split(";")
+            nmotifs = request.POST.get("nmotifs" + str(i))
+            memeJobs.append({
+                "name": motifName,
+                "seqs": motifSeqs,
+                "nmotifs": nmotifs
+            })
+
+        print("Meme jobs to be run:")
+        print(memeJobs)
+        
 
         
     except Exception as e:
@@ -144,10 +156,10 @@ def launch(request):
         "peptides": 0,
         "cutoff": cutoffRank
     }
-
-    # define a function to progressively update the current status of the run
     if not os.path.exists("runs/" + runName + ".json"):
         os.mknod("runs/" + runName + ".json")
+
+    # define a function to progressively update the current status of the run
  
     def updateRun(message, number, count, accession):
         runStatus["phase"] = message
@@ -162,6 +174,7 @@ def launch(request):
     peptideCount = 0
     returnText = "Done with run " + runName
 
+    # Now try the actual run, if fail announce so
     try:
         # combine accessions with the accessions in the accessions buffer text file
         with open("accessions.txt", "a+") as file:
@@ -171,12 +184,13 @@ def launch(request):
         f = open('accessions.txt')
 
         # create the new motifs with meme
-        seeq = []
+        for memeJob in memeJobs:
+            seeq = []
+            for p in memeJob["seqs"]:
+                pair = p.split(",")
+                seeq.append((pair[0], pair[1]))
 
-        for p in motifInput:
-            pair = p.split(",")
-            seeq.append((pair[0], pair[1]))
-        makeMeme(seeq, motifName, 3)
+            makeMeme(seeq, memeJob["name"], memeJob["nmotifs"])
 
         accession = f.readline()
         while accession:
@@ -196,8 +210,10 @@ def launch(request):
         os.remove("accessions.txt")
     if os.path.exists("hold.txt"):
         os.remove("hold.txt")
-    if os.path.exists("motifs/" + memeName + "Results.txt"):
-        os.remove("motifs/" + memeName + "Results.txt")
+    for memeJob in memeJobs:
+        if os.path.exists("motifs/" + memeJob["name"] + "Results.txt"):
+            os.remove("motifs/" + memeJob["name"] + "Results.txt")
+    
 
     return(HttpResponse(returnText, content_type="text/plain"))
 
