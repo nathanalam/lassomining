@@ -205,6 +205,13 @@
                         for(var j = 0; j < closestProteins.length; j++) {
                             closestIs = closestProteins[j]
                             var otherIprots = [];
+
+                            // generate a random color
+                            red = 50 + Math.ceil(Math.random() * 150);
+                            green = 50 + Math.ceil(Math.random() * 150);
+                            blue = 50 + Math.ceil(Math.random() * 150);
+
+                            // generate plot for this protein list
                             for(var e = 0; e < closestIs.length; e++) {
                                 var newProt = {
                                     x: [closestIs[e]["start"], closestIs[e]["end"]],
@@ -213,10 +220,10 @@
                                     name: closestIs[e]["memeDir"] + ": #" + e,
                                     text: closestIs[e]["motif"] + "<br>P-value: " + closestIs[e]["p-value"],
                                     marker: {
-                                        color: 'rgb(249,168,37)'
+                                        color: 'rgb(' + red + ',' + green + ',' + blue + ')'
                                     },
                                     line: {
-                                        color: 'rgb(249,168,37)'
+                                        color: 'rgb(' + red + ',' + green + ',' + blue + ')'
                                     }
                                 };
                                 otherIprots.push(newProt);
