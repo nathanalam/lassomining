@@ -4,6 +4,7 @@ from django.http import HttpResponse
 import json
 import os
 from Miner import scanGenomes, mine
+from Motifmaker import makeMeme
 import time
 import sqlite3
 import re
@@ -18,7 +19,7 @@ ROOT_URLCONF = __name__
 ALLOWED_HOSTS = [BASE_URL[7:], BASE_URL[7:len(BASE_URL) - 5], BASE_DIR]
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static'),]
-DEBUG=False
+DEBUG=True
 
 # regular expression function for regular expression search
 def regexp(expr, item):
@@ -54,8 +55,8 @@ def readPeptides(sequence, genome, start, end, runName, maxNum):
             "genome": row[6],
             "index": row[7],
             "runName": row[8],
-            "closestBs": json.loads(row[9]),
-            "closestCs": json.loads(row[10]),
+            "closestProts": json.loads(row[9]),
+            "closestProtLists": json.loads(row[10]),
         })
     c.close()
     return lassopeptides
@@ -112,8 +113,23 @@ def launch(request):
         pattern = request.POST.get("pattern")     
         cutoffRank = float(request.POST.get("cutoffRank"))
         raw = request.POST.get("accessions")
-        print(len(raw))
         accessions = raw.split(",")
+        numMemes = int(request.POST.get("motifInputs"))
+        memeJobs = []
+        for i in range(1, numMemes + 1):
+            motifName = request.POST.get("motifName" + str(i))
+            motifSeqs = request.POST.get("sequences" + str(i)).split(";")
+            nmotifs = request.POST.get("nmotifs" + str(i))
+            memeJobs.append({
+                "name": motifName,
+                "seqs": motifSeqs,
+                "nmotifs": nmotifs
+            })
+
+        print("Meme jobs to be run:")
+        print(memeJobs)
+        
+
         
     except Exception as e:
         print("Could not read responses due to " + str(e))
@@ -140,10 +156,10 @@ def launch(request):
         "peptides": 0,
         "cutoff": cutoffRank
     }
-
-    # define a function to progressively update the current status of the run
     if not os.path.exists("runs/" + runName + ".json"):
         os.mknod("runs/" + runName + ".json")
+
+    # define a function to progressively update the current status of the run
  
     def updateRun(message, number, count, accession):
         runStatus["phase"] = message
@@ -158,6 +174,7 @@ def launch(request):
     peptideCount = 0
     returnText = "Done with run " + runName
 
+    # Now try the actual run, if fail announce so
     try:
         # combine accessions with the accessions in the accessions buffer text file
         with open("accessions.txt", "a+") as file:
@@ -165,6 +182,16 @@ def launch(request):
                 file.write(accession + "\n")
         
         f = open('accessions.txt')
+
+        # create the new motifs with meme
+        for memeJob in memeJobs:
+            seeq = []
+            for p in memeJob["seqs"]:
+                pair = p.split(",")
+                seeq.append((pair[0], pair[1]))
+
+            makeMeme(seeq, memeJob["name"], memeJob["nmotifs"])
+
         accession = f.readline()
         while accession:
             peptideCount += mine(accession, runName, pattern, cutoffRank)
@@ -183,6 +210,10 @@ def launch(request):
         os.remove("accessions.txt")
     if os.path.exists("hold.txt"):
         os.remove("hold.txt")
+    for memeJob in memeJobs:
+        if os.path.exists("motifs/" + memeJob["name"] + "Results.txt"):
+            os.remove("motifs/" + memeJob["name"] + "Results.txt")
+    
 
     return(HttpResponse(returnText, content_type="text/plain"))
 

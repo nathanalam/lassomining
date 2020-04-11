@@ -61,6 +61,12 @@
                                     </div>
                                     <input id="minrank" name="minrank" type="text" class="form-control" placeholder="Rank must be greater than this" aria-label="Rank" aria-describedby="basic-addon1">
                                 </div>
+
+                                <!--MOTIF UPLOADS-->
+                                <button type="button" class="btn btn-primary" id="addMotif">Add Custom Motif</button>
+                                <div id="motifInputs">
+                                    
+                                </div>
                                 
                                 <button type="button" class="btn btn-primary" id="submit">Submit</button>
                                 <button type="button" class="btn btn-primary"  data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample" id="close">^</button>
@@ -70,6 +76,8 @@
 
         </div>
         <script>
+            motifCount = 0
+
             function refresh() {
                 $("#canvas").empty();
                 $("#canvas").append(`
@@ -189,15 +197,67 @@
 
             $("#submit").click(function() {
                 alert("Run " + $("#run").val() + " has begun! Please wait, and refresh the page");
-                $.post('$BASE_URL$/launchrun', { 
+                runData = {
                     accessions: $("#acc").val(),
                     pattern: $("#pat").val(),
                     runName: $("#run").val(),
-                    cutoffRank: $("#minrank").val()
-                }, function(data) {
+                    motifInputs: "" + motifCount,
+                    cutoffRank: $("#minrank").val(),
+                }
+                for(var i = 1; i <= motifCount; i++) {
+                    runData["motifName" + i] = $("#motname" + i).val();
+                    runData["sequences" + i] = $("#sequences" + i).val();
+                    runData["nmotifs" + i] = $("#nmotifs" + i).val();
+                }
+
+                console.log(runData)
+
+                $.post('$BASE_URL$/launchrun', runData, function(data) {
                     alert(data);
                 });
                 refresh();
+            });
+
+            $("#addMotif").click(function() {
+                motifCount++
+                console.log("Hello");
+                $("#motifInputs").append(`
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="basic-addon1">Motif ` + motifCount + ` Name</span>
+                        </div>
+                        <input id="motname` + motifCount + `" name="motname" type="text" class="form-control" value="Test" aria-label="Motif Name" aria-describedby="basic-addon1">
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="basic-addon1">Motifs</span>
+                        </div>
+                        <input id="sequences` + motifCount + `" name="sequences" type="text" class="form-control" value="sequenceName, sequence; sequenceName2, sequence2" aria-label="Sequences" aria-describedby="basic-addon1">
+                    </div>
+
+                    <div class="input-group mb-3">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text" id="basic-addon1">Number of Motifs</span>
+                        </div>
+                        <input id="nmotifs` + motifCount + `" name="nmotifs" type="text" class="form-control" value="ex: 3" aria-label="Motifs" aria-describedby="basic-addon1">
+                    </div>
+                `)
+                /*console.log(```
+                <div class="input-group mb-3">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text" id="basic-addon1">Motif Name</span>
+                                        </div>
+                                        <input id="motname" name="motname" type="text" class="form-control" value="Test" aria-label="Motif Name" aria-describedby="basic-addon1">
+                                    </div>
+    
+                                    <div class="input-group mb-3">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text" id="basic-addon1">Motifs</span>
+                                        </div>
+                                        <input id="motifs" name="motifs" type="text" class="form-control" value="sequenceName, sequence; sequenceName2, sequence2" aria-label="Motifs" aria-describedby="basic-addon1">
+                                    </div>
+                ```);*/
             });
         </script>
     </body>

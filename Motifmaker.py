@@ -1,15 +1,15 @@
 import os
 import shutil
 
-# Generate MEME output file from a sequence of proteins
+# Generate MEME output file from a list of protein sequences
 # @ Param - protSeq is a list of tuples, with name sequence pairs
-def makeMeme(protSeq, memeName):
+def makeMeme(protSeq, memeName, nmotifs):
     with open("modelProteins/" + memeName + ".faa", "w") as f:
         for seq in protSeq:
             print("writing " + str(seq))
             f.write(">" + seq[0] + "\n" + seq[1] + "\n\n")
     
-    command = "meme -nmotifs " + str(len(protSeq)) + " -maxw 25 modelProteins/" + memeName + ".faa -o motifs/" + memeName
+    command = "/root/meme/bin/meme -nmotifs " + str(nmotifs) + " -maxw 25 modelProteins/" + memeName + ".faa -o motifs/" + memeName
     print(command)
     os.system(command)
 
