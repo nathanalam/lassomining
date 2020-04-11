@@ -96,7 +96,7 @@ Define a method that lets us take a sequence and identify motif matches from it.
 Requires the sequence and the directory of the pre-generated MEME motif files as input, 
 and returns a tuple containing the B matches and the C matches.
 '''
-def mastSearch(sequence, memeDir):
+def mastSearch(sequence, memeDir, memeInstall):
     motifMatches = []
     with open("tempseq.txt", "w") as file:
         file.write("> " + "temporary" + "\n")
@@ -104,7 +104,7 @@ def mastSearch(sequence, memeDir):
         file.close()
 
     for dir in os.listdir(memeDir):
-        command = '/root/meme/bin/mast -hit_list ' + memeDir + "/" + dir + ' tempseq.txt > tempout' + dir
+        command = memeInstall + '/bin/mast -hit_list ' + memeDir + "/" + dir + ' tempseq.txt > tempout' + dir
         # print(command)
         os.system(command)
 
@@ -182,7 +182,7 @@ precursor peptides matching the regular expression pattern at the top of the scr
 The function returns a list of matched proteins, which have a specific sequence, ORF, 
 nearest B/C cluster, and range within the overall sequence.
 '''
-def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
+def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstall):
     Aproteins = []
     AuxProteins = []
 
@@ -195,7 +195,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
     ORF = 0
     for pair in sequenceORFs:
         overallSequence = pair["sequence"]
-        motifMatches = mastSearch(overallSequence, "motifs")
+        motifMatches = mastSearch(overallSequence, "motifs", memeInstall)
         
         index = 0
         for matchSet in motifMatches:
@@ -309,8 +309,8 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank):
     return Aproteins
 
 
-def scanGenomes(runName, pattern, cutoffRank):
-    conn = sqlite3.connect('matches.db')
+def scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall):
+    conn = sqlite3.connect(databaseDir)
 
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
@@ -334,7 +334,7 @@ def scanGenomes(runName, pattern, cutoffRank):
             print("Instead, it has " + str(len(readSequences)))
             raise RuntimeError
         for i in range(0, len(readSequences), 6):
-            buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName, cutoffRank)
+            buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName, cutoffRank, memeInstall)
             for peptide in buffer:
                 c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                     [peptide['sequence'],
@@ -357,7 +357,7 @@ def scanGenomes(runName, pattern, cutoffRank):
     
     return matchedProteins
 
-def mine(accession, runName, pattern, cutoffRank):
+def mine(accession, runName, pattern, cutoffRank, databaseDir, memeInstall):
 
     accession = accession.strip()
     ## download the genome associated with the accession number
@@ -394,7 +394,7 @@ def mine(accession, runName, pattern, cutoffRank):
 
     # launch the actual mining of the translated genomes
     print("scanning genomes for lassos")
-    results = scanGenomes(runName, pattern, cutoffRank)
+    results = scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall)
     count = len(results)
     print("found " + str(count) + " peptides from " + accession)
 
