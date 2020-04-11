@@ -5,19 +5,19 @@ import time
 import json
 import os
 import shutil
+import sys
 
 runName = "testRun"
 pattern = "M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*"
 cutoffRank = -100
-numMemes = 0
-genomeDir = "genomest/"
+genomeDir = "genomes/"
 databaseDir = "matches.db"
-memeDir = "/home/blucheez/Projects/meme"
+memeDir = "/root/meme"
 motifDir = "motifs/"
 runDir = "runs/"
 memeJobs = [
-    ["models/test/b.faa", 3, 25],
-    ["models/test/c.faa", 4, 25]
+    ["models/b.faa", 3, 25],
+    ["models/c.faa", 4, 25]
 ]
 
 print("Meme jobs to be run:")
@@ -39,6 +39,7 @@ for memeJob in memeJobs:
     os.rename(motifDir + memeName + "/meme.txt", motifDir + memeName + "Results.txt")
     shutil.rmtree(motifDir + memeName)
 
+sys.exit(0)
 # start a timer
 t0 = time.time()
 
