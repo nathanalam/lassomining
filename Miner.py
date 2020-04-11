@@ -309,7 +309,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
     return Aproteins
 
 
-def scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall):
+def scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeFolder):
     conn = sqlite3.connect(databaseDir)
 
     c = conn.cursor()
@@ -317,14 +317,14 @@ def scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall):
              (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestProts text, closestProtLists text)''')
 
     DIRNAMES = []
-    for dirname in os.listdir("genomes"):
+    for dirname in os.listdir(genomeFolder):
         if (dirname.find(".") != -1):
             if(dirname[len(dirname) - 3:] == "faa"):
-                DIRNAMES.append("genomes/" + dirname)
+                DIRNAMES.append(genomeFolder + dirname)
         else:
-            for filename in os.listdir("genomes/" + dirname):
+            for filename in os.listdir(genomeFolder + dirname):
                 if(filename[len(filename) - 3:] == "faa"):
-                    DIRNAMES.append("genomes/" + dirname + "/" + filename)
+                    DIRNAMES.append(genomeFolder + dirname + "/" + filename)
 
     matchedProteins = []
     for filename in DIRNAMES:
@@ -357,57 +357,28 @@ def scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall):
     
     return matchedProteins
 
-def mine(accession, runName, pattern, cutoffRank, databaseDir, memeInstall):
-
-    accession = accession.strip()
-    ## download the genome associated with the accession number
-    print("Generating URL File downloads for genomes")
-    if(".gz" in accession[len(accession) - 3:]):
-        print("found a direct zip file address")
-        os.system('echo "' + accession +'" >> fileurls.txt')
-    else: 
-        print("attempting assembly search")
-        str1 = 'esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt'
-        print(str1)
-        os.system(str1)
-        print("attempting nucleotide search")
-        str1 = 'esearch -db nucleotide -query "' + accession + '" | efetch -format fasta >> genomes/' + accession + '.fna'
-        print(str1)
-        os.system(str1)
-        print("attempting genome search")
-        str1 = 'esearch -db genome -query "' + accession + '" | efetch -format fasta >> genomes/' + accession + '.fna'
-        print(str1)
-        os.system(str1)
-        # os.system('esearch -db assembly -query "' + accession + '" | efetch -format docsum | xtract -pattern DocumentSummary -element FtpPath_RefSeq | awk -F"/" \'{print $0"/"$NF"_genomic.fna.gz"}\' >> fileurls.txt')
-
-    print("Downloading files using wget into genomes folder")
-    os.system("wget --directory-prefix=genomes $( cat fileurls.txt )")
-
-    print("Unzipping downloaded files")
-    os.system("gunzip -r genomes")
-
-    os.system("rm fileurls.txt")
+def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall):
 
     ## translate the downloaded file into amino acid sequence
-    print("translating accessions")
-    os.system("python3 Translator.py")
+    print("translating fna files in directory folder")
+    os.system("python3 Translator.py -dir " + genomeFolder)
 
     # launch the actual mining of the translated genomes
     print("scanning genomes for lassos")
-    results = scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall)
+    results = scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeFolder)
     count = len(results)
-    print("found " + str(count) + " peptides from " + accession)
+    print("found " + str(count) + " peptides")
 
      ## clear the genomes subdirectory
     print("clearing the genomes directory...")
     ALLDIRNAMES = []
-    for dirname in os.listdir("genomes"):
+    for dirname in os.listdir(genomeFolder):
         ## if a regular file, just add to directory
         if (dirname.find(".") != -1):
-            ALLDIRNAMES.append("genomes/" + dirname)
+            ALLDIRNAMES.append(genomeFolder + dirname)
         else:
-            for filename in os.listdir("genomes/" + dirname):
-                ALLDIRNAMES.append("genomes/" + dirname + "/" + filename)
+            for filename in os.listdir(genomeFolder + dirname):
+                ALLDIRNAMES.append(genomeFolder+ dirname + "/" + filename)
     for dirname in ALLDIRNAMES:
         os.remove(dirname)
 

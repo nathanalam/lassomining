@@ -20,6 +20,7 @@ Add command line arguments
 parser = argparse.ArgumentParser()
 # add long and short argument
 parser.add_argument("--clear", "-c", help="clear all .faa files and translate again", action="store_true")
+parser.add_argument('-dir', action="store", dest="dir", default="genomes/")
 
 # read arguments from the command line
 args = parser.parse_args()
@@ -28,6 +29,8 @@ args = parser.parse_args()
 clearDir = False
 if args.clear:
     clearDir = True
+
+genomeLocation = args.dir
 
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
@@ -106,13 +109,13 @@ def readFASTA(name, cleanspace = 0):
 
 # Populate ALLDIRNAMES with all of the files in the genome file
 ALLDIRNAMES = []
-for dirname in os.listdir("genomes"):
+for dirname in os.listdir(genomeLocation):
     ## if a regular file, just add to directory
     if (dirname.find(".") != -1):
-        ALLDIRNAMES.append("genomes/" + dirname)
+        ALLDIRNAMES.append(genomeLocation + dirname)
     else:
-        for filename in os.listdir("genomes/" + dirname):
-            ALLDIRNAMES.append("genomes/" + dirname + "/" + filename)
+        for filename in os.listdir(genomeLocation + dirname):
+            ALLDIRNAMES.append(genomeLocation + dirname + "/" + filename)
 
 if(clearDir):
     print("Clearing all .faa files in genome directory")
@@ -251,7 +254,7 @@ for dirname in ALLDIRNAMES:
                     "description": str(seqDescriptions[i] + " - ORF " + str(aalist[e]["ORF"])) 
                 })
         
-        print("writing read peptides into '" + dirname[len('genomes/'):len(dirname) - 3] + "faa'")
+        print("writing read peptides into '" + dirname[len(genomeLocation):len(dirname) - 3] + "faa'")
         with open(dirname[:len(dirname) - 3] + "faa", 'w') as outfile:
             for ent in entries:
                 outfile.write("> " + ent["description"] + "\n")

@@ -2,20 +2,17 @@ import os
 import shutil
 
 # Generate MEME output file from a list of protein sequences
-# @ Param - protSeq is a list of tuples, with name sequence pairs
-def makeMeme(protSeq, memeName, nmotifs):
-    with open("modelProteins/" + memeName + ".faa", "w") as f:
-        for seq in protSeq:
-            print("writing " + str(seq))
-            f.write(">" + seq[0] + "\n" + seq[1] + "\n\n")
-    
-    command = "/root/meme/bin/meme -nmotifs " + str(nmotifs) + " -maxw 25 modelProteins/" + memeName + ".faa -o motifs/" + memeName
-    print(command)
-    os.system(command)
+# @ Param - motifJobs is a list of triplets, with directory - width - number of motif groupings
+def makeMemes(motifJobs, memeDir, motifDir):
 
-    os.remove("modelProteins/" + memeName + ".faa")
-    os.rename("motifs/" + memeName + "/meme.txt", "motifs/" + memeName + "Results.txt")
-    shutil.rmtree("motifs/" + memeName)
+    for model in os.listdir(modelDir):
+        memeName = model[0:len(model) - 4]
+        command = memeDir + "/bin/meme -nmotifs " + str(nmotifs) + " -maxw 25" + modelDir + model + "-o " + motifDir + memeName
+        print(command)
+        os.system(command)
+
+        os.rename(motifDir + memeName + "/meme.txt", motifDir + memeName + "Results.txt")
+        shutil.rmtree(motifDir + memeName)
 
 # seeq = [
 #     ("lmao", "AFAFAFAFAAFAAFAFAFAFAAFAAFAFAFAFAAFAAFAFAFAFAAFAAFAFAFAFAAFAAFAFAFAFAAFA"),
