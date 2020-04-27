@@ -7,21 +7,53 @@ import os
 import shutil
 import sys
 
-runName = "testRun"
-pattern = "M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*"
-cutoffRank = -100
-genomeDir = "/tigress/nalam/genomeMining/genomes/"
-databaseDir = "/tigress/nalam/genomeMining/matches.db"
+
+## Locations for dependencies - memeDir points to installation location of meme suite, localmotifDir is a temp folder
 memeDir = "/home/nalam/meme"
 localmotifDir = "/home/nalam/lassomining/motifs/"
-runDir = "/tigress/nalam/genomeMining/runs/"
-memeJobs = [
-    ["/tigress/nalam/genomeMining/models/b.faa", 3, 25],
-    ["/tigress/nalam/genomeMining/models/c.faa", 4, 25]
-]
+
+# Method to convert a string into a list of meme jobs
+def meme_job(string):
+    jobs = string.split(",")
+    jobList = []
+    for j in jobs:
+        s = j.split(":")
+        file = s[0]
+        nmotif = s[1]
+        width = s[2]
+        jobList.append([file, int(nmotif), int(width)])
+    return jobList
+
+# Optional command line arguments with default values
+parser = argparse.ArgumentParser()
+parser.add_argument('-name', action="store", dest="runName", default="testRun")
+parser.add_argument('-pattern', action="store", dest="pattern", default="M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*")
+parser.add_argument('-cutoff', action="store", dest="cutoff", default="-100")
+parser.add_argument('-genome', action="store", dest="genome", default="/tigress/nalam/genomeMining/genomes/*")
+parser.add_argument('-o', action="store", dest="outputDir", default="/tigress/nalam/genomeMining/matches.db")
+parser.add_argument('-rundata', action="store", dest="rundata", default="/tigress/nalam/genomeMining/runs/")
+parser.add_argument('-model', action="store", dest="model", 
+    default="/tigress/nalam/genomeMining/models/b.faa:3:25,/tigress/nalam/genomeMining/models/c.faa:4:25")
+
+# Reading command line arguments
+args = parser.parse_args()
+runName = args.runName
+pattern = args.pattern
+cutoffRank = float(args.cutoff)
+genome = args.genome
+genomeDir = ""
+if (genome[len(genome) - 1] == "*"):
+    genomeDir = genome[:len(genome) - 1]
+databaseDir = args.outputDir
+runDir = args.rundata
+memeJobs = meme_job(args.model)
+
+
 
 print("Meme jobs to be run:")
 print(memeJobs)
+
+# Generate motifs and store them in localmotifDir
 for memeJob in memeJobs:
     memeName = memeJob[0].split("/")
     modelDir = "/".join(memeName[0: len(memeName) - 1]) + "/"
@@ -36,7 +68,7 @@ for memeJob in memeJobs:
     print(command)
     os.system(command)
 
-    os.rename(localmotifDir + memeName + "/meme.txt", motifDir + memeName + "Results.txt")
+    os.rename(localmotifDir + memeName + "/meme.txt", localmotifDir + memeName + "Results.txt")
     shutil.rmtree(localmotifDir + memeName)
 
 # start a timer
