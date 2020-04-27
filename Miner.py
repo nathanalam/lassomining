@@ -12,10 +12,6 @@ import math
 import pandas as pd
 import sqlite3
 
-PATTERN = 'M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*'
-# PATTERN = 'CC.CGCCC...TGGC.'
-# PATTERN = '.*'
-
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
 an object that contains a list of sequence objects. Each sequence object has a description field 
@@ -225,7 +221,6 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
             except StopIteration:
                 done_looping = True
             else:
-
                 # get the correct range based on span
                 indices = list(match.span())
                 indices = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, indices[0] * 3, indices[1] * 3)
@@ -279,7 +274,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                     rank = rank * termE
                     closestIs.sort(key=sortFunct)
                     closestProts.append(closestI)
-                    closestProtLists.append(closestIs)
+                    closestProtLists.append(closestIs[0:10])
 
                 if rank <= 0:
                     continue
@@ -289,6 +284,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                 descriptors = description.split()
                 # append the protein to the list of proteins
                 if (rank >= cutoffRank):
+                    print("Found peptide " + match.group(0) + ", rank " + str(rank))
                     Aproteins.append({
                         "description": description,
                         "sequence": match.group(0),
@@ -297,7 +293,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                         "overallLength": len(overallSequence) * 3,
                         "rank": rank,
                         "closestProts": closestProts,
-                        "closestProtLists": closestProtLists[0:10],
+                        "closestProtLists": closestProtLists,
                         "ORF": ORFs[ORF],
                         "genome": descriptors[1] + " " + descriptors[2],
                         "index": descriptors[0],
@@ -335,7 +331,9 @@ def scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeFo
             raise RuntimeError
         for i in range(0, len(readSequences), 6):
             buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName, cutoffRank, memeInstall)
+            print("Found " + str(len(buffer)) + " peptides in this set of ORFs")
             for peptide in buffer:
+                print("Inserting " + peptide['sequence'] + " into database")
                 c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                     [peptide['sequence'],
                     peptide['searchRange'][0],

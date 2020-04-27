@@ -10,14 +10,14 @@ import sys
 runName = "testRun"
 pattern = "M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*"
 cutoffRank = -100
-genomeDir = "genomes/"
-databaseDir = "matches.db"
-memeDir = "/root/meme"
-motifDir = "motifs/"
-runDir = "runs/"
+genomeDir = "/tigress/nalam/genomeMining/genomes/"
+databaseDir = "/tigress/nalam/genomeMining/matches.db"
+memeDir = "/home/nalam/meme"
+motifDir = "/home/nalam/lassomining/motifs/"
+runDir = "/tigress/nalam/genomeMining/runs/"
 memeJobs = [
-    ["models/b.faa", 3, 25],
-    ["models/c.faa", 4, 25]
+    ["/tigress/nalam/genomeMining/models/b.faa", 3, 25],
+    ["/tigress/nalam/genomeMining/models/c.faa", 4, 25]
 ]
 
 print("Meme jobs to be run:")
@@ -39,7 +39,6 @@ for memeJob in memeJobs:
     os.rename(motifDir + memeName + "/meme.txt", motifDir + memeName + "Results.txt")
     shutil.rmtree(motifDir + memeName)
 
-sys.exit(0)
 # start a timer
 t0 = time.time()
 

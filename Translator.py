@@ -235,7 +235,7 @@ Now, convert each of the FNA files found in ALLDIRNAMES into corresponding FAA f
 '''
 
 for dirname in ALLDIRNAMES:
-    if((dirname[len(dirname) - 3:] == "fna") and not (dirname[:len(dirname) - 3] + "faa") in ALLDIRNAMES):
+    if(((dirname[len(dirname) - 3:] == "fna") or (dirname[len(dirname) - 5:] == "fasta")) and not (dirname[:len(dirname) - 3] + "faa") in ALLDIRNAMES):
         print("Opening up " + dirname + " and converting into peptide sequences...")
         DNAseqs = []
         seqDescriptions = []
