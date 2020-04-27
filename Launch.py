@@ -13,7 +13,7 @@ cutoffRank = -100
 genomeDir = "/tigress/nalam/genomeMining/genomes/"
 databaseDir = "/tigress/nalam/genomeMining/matches.db"
 memeDir = "/home/nalam/meme"
-motifDir = "/home/nalam/lassomining/motifs/"
+localmotifDir = "/home/nalam/lassomining/motifs/"
 runDir = "/tigress/nalam/genomeMining/runs/"
 memeJobs = [
     ["/tigress/nalam/genomeMining/models/b.faa", 3, 25],
@@ -32,12 +32,12 @@ for memeJob in memeJobs:
     width = memeJob[2]
     print("creating meme motifs for " + memeName)
     print("reading from " + modelDir + model)
-    command = memeDir + "/bin/meme -nmotifs " + str(nmotifs) + " -maxw " + str(width) + " " + modelDir + model + " -o " + motifDir + memeName
+    command = memeDir + "/bin/meme -nmotifs " + str(nmotifs) + " -maxw " + str(width) + " " + modelDir + model + " -o " + localmotifDir + memeName
     print(command)
     os.system(command)
 
-    os.rename(motifDir + memeName + "/meme.txt", motifDir + memeName + "Results.txt")
-    shutil.rmtree(motifDir + memeName)
+    os.rename(localmotifDir + memeName + "/meme.txt", motifDir + memeName + "Results.txt")
+    shutil.rmtree(localmotifDir + memeName)
 
 # start a timer
 t0 = time.time()
@@ -86,6 +86,6 @@ for memeJob in memeJobs:
     memeName = memeJob[0].split("/")
     memeName = memeName[len(memeName) - 1]
     memeName = memeName[0: len(memeName) - 4]
-    if os.path.exists(motifDir + memeName + "Results.txt"):
-        os.remove(motifDir + memeName + "Results.txt")
+    if os.path.exists(localmotifDir + memeName + "Results.txt"):
+        os.remove(localmotifDir + memeName + "Results.txt")
 
