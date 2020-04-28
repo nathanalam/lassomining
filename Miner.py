@@ -11,6 +11,10 @@ import json
 import math
 import pandas as pd
 import sqlite3
+import Bio
+import time
+from Bio.Seq import Seq, reverse_complement, translate
+from Bio.Alphabet import IUPAC
 
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
@@ -305,79 +309,217 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
     return Aproteins
 
 
-def scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeFolder):
+def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir):
     conn = sqlite3.connect(databaseDir)
 
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
              (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestProts text, closestProtLists text)''')
 
-    DIRNAMES = []
-    for dirname in os.listdir(genomeFolder):
-        if (dirname.find(".") != -1):
-            if(dirname[len(dirname) - 3:] == "faa"):
-                DIRNAMES.append(genomeFolder + dirname)
-        else:
-            for filename in os.listdir(genomeFolder + dirname):
-                if(filename[len(filename) - 3:] == "faa"):
-                    DIRNAMES.append(genomeFolder + dirname + "/" + filename)
-
     matchedProteins = []
-    for filename in DIRNAMES:
-        readSequences = readFASTA(filename)
-        if(not (len(readSequences) % 6) == 0):
-            print("Error: sequence in file " + filename + " does not have multiple of 6 sequences")
-            print("Instead, it has " + str(len(readSequences)))
-            raise RuntimeError
-        for i in range(0, len(readSequences), 6):
-            buffer = patternMatch(readSequences[i: i + 6], pattern, filename, runName, cutoffRank, memeInstall)
-            print("Found " + str(len(buffer)) + " peptides in this set of ORFs")
-            for peptide in buffer:
-                print("Inserting " + peptide['sequence'] + " into database")
-                c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                    [peptide['sequence'],
-                    peptide['searchRange'][0],
-                    peptide['searchRange'][1],
-                    peptide['overallLength'],
-                    peptide['rank'],
-                    peptide['ORF'],
-                    peptide['genome'],
-                    peptide['index'],
-                    peptide['runName'],
-                    json.dumps(str(peptide['closestProts'])),
-                    json.dumps(str(peptide['closestProtLists']))]
-                )
-            
-            matchedProteins.extend(buffer)
+    
+    readSequences = readFASTA(genomeDir)
+    if(not (len(readSequences) % 6) == 0):
+        print("Error: sequence in file " + genomeDir + " does not have multiple of 6 sequences")
+        print("Instead, it has " + str(len(readSequences)))
+        raise RuntimeError
+    for i in range(0, len(readSequences), 6):
+        buffer = patternMatch(readSequences[i: i + 6], pattern, genomeDir, runName, cutoffRank, memeInstall)
+        print("Found " + str(len(buffer)) + " peptides in this set of ORFs")
+        for peptide in buffer:
+            print("Inserting " + peptide['sequence'] + " into database")
+            c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                [peptide['sequence'],
+                peptide['searchRange'][0],
+                peptide['searchRange'][1],
+                peptide['overallLength'],
+                peptide['rank'],
+                peptide['ORF'],
+                peptide['genome'],
+                peptide['index'],
+                peptide['runName'],
+                json.dumps(str(peptide['closestProts'])),
+                json.dumps(str(peptide['closestProtLists']))]
+            )
+        
+        matchedProteins.extend(buffer)
 
-    conn.commit()
+    submitted = False
+    while(not submitted):
+        try:
+            conn.commit()
+            submitted = True
+        except:
+            print(databaseDir " is busy, waiting 5 seconds")
+            time.sleep(5)
     conn.close()
     
     return matchedProteins
 
+# takes a three letter codon, and returns the corresponding amino acid or 'X' if unknown
+def translate_codon(codonString):
+    if(not len(codonString) == 3):
+        raise InputError()
+        
+    try:
+        return translate(codonString, to_stop=False, table = 11)
+    except:
+        return 'X'
+
+# An adapter function for the biopython's translate, takes in a DNA sequence and 
+# returns a list of protein sequences. If reading fails, reads each character manually
+# and insert X if unable to translate properly
+def get_orfs(DNAseq):
+    AAList = []
+    
+    codonArr = []
+    seqLen = len(DNAseq) - (len(DNAseq) % 3)
+    seq = ''
+    try:
+        seq = translate(DNAseq[0:seqLen])
+    except:
+        for i in range(0, seqLen, 3):
+            codonArr.append(translate_codon(DNAseq[i:i + 3]))
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": 1,
+        "sequence": seq
+    })
+    
+    codonArr = []
+    seqLen = len(DNAseq) - ((len(DNAseq) - 1) % 3)
+    seq = ''
+    try:
+        seq = translate(DNAseq[1:seqLen])
+    except:
+        for i in range(1, seqLen, 3):
+            codonArr.append(translate_codon(DNAseq[i:i + 3]))
+
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": 2,
+        "sequence": seq
+    })
+    
+    codonArr = []
+    seqLen = len(DNAseq) - ((len(DNAseq) - 2) % 3)
+    seq = ''
+    try:
+        seq = translate(DNAseq[2:seqLen])
+    except:
+        for i in range(2, seqLen, 3):
+            codonArr.append(translate_codon(DNAseq[i:i + 3]))
+
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": 3,
+        "sequence": seq
+    })
+    
+    backwards_dna = reverse_complement(DNAseq)
+    codonArr = []
+    seqLen = len(backwards_dna) - (len(backwards_dna) % 3)
+    seq = ''
+    try:
+        seq = translate(backwards_dna[0:seqLen])
+    except:
+        for i in range(0, seqLen, 3):
+            codonArr.append(translate_codon(backwards_dna[i:i + 3]))
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": -1,
+        "sequence": seq
+    })
+    
+    codonArr = []
+    seqLen = len(backwards_dna) - ((len(backwards_dna) - 1) % 3)
+    seq = ''
+    try:
+        seq = translate(backwards_dna[1:seqLen])
+    except:
+        for i in range(1, seqLen, 3):
+            codonArr.append(translate_codon(backwards_dna[i:i + 3]))
+
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": -2,
+        "sequence": seq
+    })
+    
+    codonArr = []
+    seqLen = len(backwards_dna) - ((len(backwards_dna) - 2) % 3)
+    seq = ''
+    try:
+        seq = translate(backwards_dna[2:seqLen])
+    except:
+        for i in range(2, seqLen, 3):
+            codonArr.append(translate_codon(backwards_dna[i:i + 3]))
+
+        seq = ''.join(codonArr)
+    AAList.append({
+        "ORF": -3,
+        "sequence": seq
+    })
+    
+    return AAList   
+
 def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall):
 
     ## translate the downloaded file into amino acid sequence
-    print("translating fna files in directory folder")
-    os.system("python3 Translator.py -dir " + genomeFolder)
+    count = 0
 
-    # launch the actual mining of the translated genomes
-    print("scanning genomes for lassos")
-    results = scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeFolder)
-    count = len(results)
-    print("found " + str(count) + " peptides")
-
-     ## clear the genomes subdirectory
-    print("clearing the genomes directory...")
-    ALLDIRNAMES = []
-    for dirname in os.listdir(genomeFolder):
-        ## if a regular file, just add to directory
-        if (dirname.find(".") != -1):
-            ALLDIRNAMES.append(genomeFolder + dirname)
-        else:
-            for filename in os.listdir(genomeFolder + dirname):
-                ALLDIRNAMES.append(genomeFolder+ dirname + "/" + filename)
+    print("translating fna files in directory folder " + genomeFolder)
+    ALLDIRNAMES = os.listdir(genomeFolder)
     for dirname in ALLDIRNAMES:
-        os.remove(dirname)
+        translatedDirectory = ""
+        if(((dirname[len(dirname) - 3:] == "fna") or (dirname[len(dirname) - 5:] == "fasta")) and not (dirname[:len(dirname) - 3] + "faa") in ALLDIRNAMES):
+            print("Opening up " + dirname + " and converting into peptide sequences...")
+            DNAseqs = []
+            seqDescriptions = []
+            try:
+                for fastaobj in readFASTA(genomeFolder + dirname):
+                    DNAseqs.append(fastaobj["sequence"])
+                    seqDescriptions.append(fastaobj["description"])
+            except:
+                continue
+
+            try:
+                os.remove(genomeFolder + dirname)
+            except:
+                continue
+                
+            entries = []
+            for i in range(0, len(DNAseqs)):
+                print("converting " + str(len(DNAseqs[i])) + " base pairs from " + seqDescriptions[i])
+                aalist = get_orfs(DNAseqs[i])
+                print("created " + str(len(aalist)) + " peptide sequences from " + seqDescriptions[i])
+                for e in range(0, len(aalist)):
+                    entries.append({
+                        "sequence": aalist[e]["sequence"],
+                        "description": str(seqDescriptions[i] + " - ORF " + str(aalist[e]["ORF"])) 
+                    })
+            suffixNum = 5
+            if(dirname[len(dirname) - 3:] == "fna"):
+                suffixNum = 3
+
+            translatedDirectory = genomeFolder + dirname[:len(dirname) - suffixNum] + "faa"
+            
+            print("writing read peptides into '" + translatedDirectory + "'")
+            with open(translatedDirectory, 'w') as outfile:
+                for ent in entries:
+                    outfile.write("> " + ent["description"] + "\n")
+                    outfile.write(ent["sequence"] + "\n\n")
+        else:
+            continue
+        # launch the actual mining of the translated genomes
+        print("scanning " + dirname + " for lassos")
+        results = scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall, translatedDirectory)
+        count += len(results)
+        print("found " + str(count) + " peptides")
+
+        ## clear the genomes subdirectory
+        print("removing " + translatedDirectory)
+        os.remove(translatedDirectory)
+        
 
     return count

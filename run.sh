@@ -10,4 +10,4 @@ echo FINISHED INSTALLING PYTHON LIBRARIES
 
 echo ATTEMPTING TO RUN Launch.py
 
-python3 /home/nalam/lassomining/Launch.py
+python3 /home/nalam/lassomining/Launch.py -name bigRun

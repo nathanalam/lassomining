@@ -30,8 +30,8 @@ parser.add_argument('-name', action="store", dest="runName", default="testRun")
 parser.add_argument('-pattern', action="store", dest="pattern", default="M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*")
 parser.add_argument('-cutoff', action="store", dest="cutoff", default="-100")
 parser.add_argument('-genome', action="store", dest="genome", default="/tigress/nalam/genomeMining/genomes/*")
-parser.add_argument('-o', action="store", dest="outputDir", default="/tigress/nalam/genomeMining/matches.db")
-parser.add_argument('-rundata', action="store", dest="rundata", default="/tigress/nalam/genomeMining/runs/")
+parser.add_argument('-o', action="store", dest="outputDir", default="/tigress/nalam/genomeMining/output/matches.db")
+parser.add_argument('-rundata', action="store", dest="rundata", default="/tigress/nalam/genomeMining/output/runs/")
 parser.add_argument('-model', action="store", dest="model", 
     default="/tigress/nalam/genomeMining/models/b.faa:3:25,/tigress/nalam/genomeMining/models/c.faa:4:25")
 
