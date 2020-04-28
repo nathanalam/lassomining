@@ -10,4 +10,4 @@ echo FINISHED INSTALLING PYTHON LIBRARIES
 
 echo ATTEMPTING TO RUN Launch.py
 
-python3 /home/nalam/lassomining/Launch.py -name bigRun
+python3 /home/nalam/lassomining/Launch.py -name refSeqMine -cutoff 10

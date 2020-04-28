@@ -182,11 +182,11 @@ precursor peptides matching the regular expression pattern at the top of the scr
 The function returns a list of matched proteins, which have a specific sequence, ORF, 
 nearest B/C cluster, and range within the overall sequence.
 '''
-def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstall):
+def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstall, motifDir):
     Aproteins = []
     AuxProteins = []
 
-    for i in range(0, len(os.listdir("motifs"))):
+    for i in range(0, len(os.listdir(motifDir))):
         AuxProteins.append([])
     
     
@@ -195,7 +195,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
     ORF = 0
     for pair in sequenceORFs:
         overallSequence = pair["sequence"]
-        motifMatches = mastSearch(overallSequence, "motifs", memeInstall)
+        motifMatches = mastSearch(overallSequence, motifDir, memeInstall)
         
         index = 0
         for matchSet in motifMatches:
@@ -288,7 +288,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                 descriptors = description.split()
                 # append the protein to the list of proteins
                 if (rank >= cutoffRank):
-                    print("Found peptide " + match.group(0) + ", rank " + str(rank))
+                    print("Found peptide " + match.group(0) + ", rank " + str(rank) +", in " + filenam)
                     Aproteins.append({
                         "description": description,
                         "sequence": match.group(0),
@@ -309,7 +309,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
     return Aproteins
 
 
-def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir):
+def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir, motifDir):
     conn = sqlite3.connect(databaseDir)
 
     c = conn.cursor()
@@ -324,7 +324,7 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir
         print("Instead, it has " + str(len(readSequences)))
         raise RuntimeError
     for i in range(0, len(readSequences), 6):
-        buffer = patternMatch(readSequences[i: i + 6], pattern, genomeDir, runName, cutoffRank, memeInstall)
+        buffer = patternMatch(readSequences[i: i + 6], pattern, genomeDir, runName, cutoffRank, memeInstall, motifDir)
         print("Found " + str(len(buffer)) + " peptides in this set of ORFs")
         for peptide in buffer:
             print("Inserting " + peptide['sequence'] + " into database")
@@ -350,7 +350,7 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir
             conn.commit()
             submitted = True
         except:
-            print(databaseDir " is busy, waiting 5 seconds")
+            print(databaseDir + " is busy, waiting 5 seconds")
             time.sleep(5)
     conn.close()
     
@@ -463,7 +463,7 @@ def get_orfs(DNAseq):
     
     return AAList   
 
-def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall):
+def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall, motifDir):
 
     ## translate the downloaded file into amino acid sequence
     count = 0
@@ -513,7 +513,7 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall):
             continue
         # launch the actual mining of the translated genomes
         print("scanning " + dirname + " for lassos")
-        results = scanGenomes(runName, pattern, cutoffRank, databaseDir, memeInstall, translatedDirectory)
+        results = scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, translatedDirectory, motifDir)
         count += len(results)
         print("found " + str(count) + " peptides")
 

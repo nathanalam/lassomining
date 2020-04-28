@@ -107,7 +107,7 @@ count = 0
 peptideCount = 0
 
 for query in queries:
-    peptideCount += mine(genomeDir, runName, pattern, cutoffRank, databaseDir, memeDir)
+    peptideCount += mine(genomeDir, runName, pattern, cutoffRank, databaseDir, memeDir, localmotifDir)
     count += 1
     updateRun("processing" + query, count, peptideCount, query)
 
