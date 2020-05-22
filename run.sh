@@ -1,5 +1,6 @@
 #!/bin/bash
-
+source /home/nalam/.bash_profile
+source /home/nalam/.bashrc
 source /home/nalam/lassomining/bin/activate
 pip3 install django
 pip3 install biopython
@@ -10,4 +11,4 @@ echo FINISHED INSTALLING PYTHON LIBRARIES
 
 echo ATTEMPTING TO RUN Launch.py
 
-python3 /home/nalam/lassomining/Launch.py -name refSeqMine -cutoff 10
+/home/nalam/lassomining/bin/python3 /home/nalam/lassomining/Launch.py -name refSeqMine -cutoff -20
