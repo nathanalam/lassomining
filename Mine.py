@@ -65,7 +65,7 @@ if (genome[len(genome) - 1] == "*"):
 databaseDir = args.outputDir
 runDir = args.rundata
 memeJobs = meme_job(args.model)
-
+toFirestore = False
 
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
@@ -318,6 +318,10 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                         termi = 0
                         for prot in motifTable[motif]:
                             
+                            # skip if not in same direction
+                            if not ((prot["ORF"] > 0 and ORFs[ORF] > 0) or (prot["ORF"] < 0 and ORFs[ORF] < 0)):
+                                continue
+                            
                             diffsquared = (prot["start"] - start) ** 2
                             diffsquared = diffsquared * prot["p-value"]
                             if diffsquared < closest:
@@ -392,25 +396,26 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir
                 json.dumps(str(peptide['closestProts'])),
                 json.dumps(str(peptide['closestProtLists']))]
             )
-            print("Inserting " + peptide['sequence'] + " into Firestore")
-            data = {
-                "sequence": peptide['sequence'], 
-                "start": peptide['searchRange'][0], 
-                "end": peptide['searchRange'][1], 
-                "overallLength": peptide['overallLength'], 
-                "rank": peptide['rank'], 
-                "orf": peptide['ORF'], 
-                "genome": peptide['genome'], 
-                "accession": peptide['index'], 
-                "runName": peptide['runName'], 
-                "closestProts": json.dumps(str(peptide['closestProts'])), 
-                "closestProtLists": json.dumps(str(peptide['closestProtLists']))
-            }
-            try:
-                db.collection("genomes").document(data["genome"]).set({})
-                db.collection("peptides").document(data["sequence"] + str(data["start"]) + "-" + str(data["end"]) + str(data["genome"])).set(data)
-            except: 
-                print("an error uploading to firestore occured")
+            if(toFirestore):
+                print("Inserting " + peptide['sequence'] + " into Firestore")
+                data = {
+                    "sequence": peptide['sequence'], 
+                    "start": peptide['searchRange'][0], 
+                    "end": peptide['searchRange'][1], 
+                    "overallLength": peptide['overallLength'], 
+                    "rank": peptide['rank'], 
+                    "orf": peptide['ORF'], 
+                    "genome": peptide['genome'], 
+                    "accession": peptide['index'], 
+                    "runName": peptide['runName'], 
+                    "closestProts": json.dumps(str(peptide['closestProts'])), 
+                    "closestProtLists": json.dumps(str(peptide['closestProtLists']))
+                }
+                try:
+                    db.collection("genomes").document(data["genome"]).set({})
+                    db.collection("peptides").document(data["sequence"] + str(data["start"]) + "-" + str(data["end"]) + str(data["genome"])).set(data)
+                except: 
+                    print("an error uploading to firestore occured")
         
         matchedProteins.extend(buffer)
 
@@ -595,9 +600,17 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall, m
 
     return count
 
-
+print("Beginning run " + runName)
+print("cutting off hits below " + str(cutoffRank))
+print("searching for pattern " + pattern)
 print("Meme jobs to be run:")
 print(memeJobs)
+if (genome[len(genome) - 1] == "*"):
+    genomeDir = genome[:len(genome) - 1]
+    print("Genomes being read from " + str(genomeDir))
+else:
+    print("readingn genome " + genome)
+print("writing output to " + databaseDir)
 
 # Generate motifs and store them in localmotifDir
 for memeJob in memeJobs:
