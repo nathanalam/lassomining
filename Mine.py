@@ -15,17 +15,6 @@ import time
 from Bio.Seq import Seq, reverse_complement, translate
 from Bio.Alphabet import IUPAC
 
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
-
-## Initialize Firebase access
-# Use a service account
-cred = credentials.Certificate('/home/nalam/lassomining/lasso-peptides-51ce2e6250b9.json')
-firebase_admin.initialize_app(cred)
-    
-db = firestore.client()
-
 ## Locations for dependencies - memeDir points to installation location of meme suite, localmotifDir is a temp folder
 memeDir = "/home/nalam/meme"
 localmotifDir = "/home/nalam/lassomining/motifs/"
@@ -411,11 +400,6 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir
                     "closestProts": json.dumps(str(peptide['closestProts'])), 
                     "closestProtLists": json.dumps(str(peptide['closestProtLists']))
                 }
-                try:
-                    db.collection("genomes").document(data["genome"]).set({})
-                    db.collection("peptides").document(data["sequence"] + str(data["start"]) + "-" + str(data["end"]) + str(data["genome"])).set(data)
-                except: 
-                    print("an error uploading to firestore occured")
         
         matchedProteins.extend(buffer)
 
