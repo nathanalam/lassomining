@@ -9,11 +9,6 @@ This software relies on the MEME suite for identifying motifs using MAST, and it
 #### MEME Suite:
 To download MEME, follow these instructions: http://meme-suite.org/doc/install.html?man_type=web#quick
 
-#### E-Direct:
-To download Entrez, type in the following into a terminal:
-```
-sudo apt-get install entrez-direct
-```
 #### GitHub Codebase:
 Open a terminal and type the following commands in a terminal:
 ```
@@ -24,18 +19,35 @@ cd genomemining
 ```
 The command line should now have a (lassomining) tag behind it.
 
-#### Python libraries:
-Then, run the following script to install the required libraries:
+#### Python libraries
+To install the python libraries in the virtual environment, type the following:
 ```
-source shellscripts/setup.sh
-```
-
-#### Web Server Setup:
-Finally, you must update the URL for the site to correspond to the URL that you have access to (i.e. one that can receive and respond to HTTP requests and run this process). To do this, change the instances of **50.116.48.39:8080/** in [Server.py](https://github.com/nathanalam/lassomining/blob/master/Server.py) and [shellscripts/view.sh](https://github.com/nathanalam/lassomining/blob/master/shellscripts/view.sh). 
-
-To start the server, open up a terminal and type:
-```
-source shellscripts/view.sh
+git clone https://github.com/nathanalam/genomemining.git
+pip3 install virtualenv
+python3 -m venv lassomining
+cd genomemining
 ```
 
-Then, go to the URL that you set BASE_URL to - it should be running web server. Otherwise, you may need to work on having the correct server administration credentials.
+#### File Directory Setup
+
+The default directories are listed in Launch.py as the default arguments for the command line
+
+All of these can be changed manually, but also during runtime
+
+
+### Example Usage
+Using the default directories, the program can be run as follows:
+```
+python3 Launch.py
+```
+Which can also be achieved, alternatively, with the shellscript that also ensures the python environment is set up:
+```
+source run.sh
+```
+
+The following lists all of the example arguments (all are optional, and defaults will be used instead)"
+```
+python3 Launch.py -name testRun -pattern M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\* -cutuff -100 -genome /tigress/nalam/genomeMining/genomes/* -o /tigress/nalam/genomeMining/matches.db -rundata /tigress/nalam/genomeMining/runs/ -model /tigress/nalam/genomeMining/models/b.faa:3:25,/tigress/nalam/genomeMining/models/c.faa:4:25
+```
+
+Note that the flag "-model" has the format such that individual models are separated by ",", and each model requires three sections, separated by ":", corresonding to the file location, the number of motifs to generate, and the maximum width per motif.

@@ -1,9 +1,7 @@
-#!/bin/bash
-
-source bin/activate
+source /home/nalam/lassomining/bin/activate
 pip3 install django
 pip3 install biopython
 pip3 install pandas
-export PATH=$HOME/meme/bin:$HOME/meme/libexec/meme-5.1.0:$PATH
+source /home/nalam/.bash_profile
 
 echo FINISHED INSTALLING PYTHON LIBRARIES
