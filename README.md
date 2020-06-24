@@ -83,7 +83,6 @@ You will see a (lassomining) identifier in the command line now, indicating that
 pip3 install biopython
 pip3 install pandas
 pip3 install jupyter
-pip install jupyter
 ```
 ## Operation
 You can run this on a local computer, or you can run this using a [SLURM script](https://researchcomputing.princeton.edu/education/online-tutorials/getting-started/introducing-slurm)
@@ -105,3 +104,11 @@ You can view the results using the jupyter notebook inside the directory. To run
 jupyter notebook
 ```
 Then, you can enter the notebook and analyze the results as you wish. More instructions and example analyses are available on the notebook.
+
+Sometimes, jupyter can also give issues, and you might get an issue such as "cannot find notebook" when running this command. The following worked for me:
+```
+sudo apt-get remove ipython
+sudo apt-get purge ipython
+sudo apt-get autoremove
+pip install jupyter
+```
