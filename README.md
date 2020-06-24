@@ -22,32 +22,39 @@ The command line should now have a (lassomining) tag behind it.
 #### Python libraries
 To install the python libraries in the virtual environment, type the following:
 ```
-git clone https://github.com/nathanalam/genomemining.git
+git clone https://github.com/nathanalam/lassomining.git
 pip3 install virtualenv
 python3 -m venv lassomining
-cd genomemining
+cd lassomining
 ```
 
-#### File Directory Setup
+Then, once inside the directory, activate the virtual environment:
+```
+source bin/activate
+```
+You will see a (lassomining) identifier in the command line now, indicating that you are in the virtual environment and are safe to freely download libraries without making global changes to your python installation. Now, you can install the necessary libraries (you can copy and paste the following into the command prompt):
+```
+pip3 install biopython
+pip3 install pandas
+pip3 install jupyter
+```
+## Operation
+You can run this on a local computer, or you can run this using a [SLURM script](https://researchcomputing.princeton.edu/education/online-tutorials/getting-started/introducing-slurm)
 
-The default directories are listed in Launch.py as the default arguments for the command line
+### Configuration
+The default directories are listed in *config.yaml* file within the repository. Change them as you see fit for your use case - the file is commented with more details about what each of the parameters mean.
 
-All of these can be changed manually, but also during runtime
-
+This file holds parameters which will be specific to each run, and also other variables that you may want to alter.
 
 ### Example Usage
-Using the default directories, the program can be run as follows:
+After editing the *config.yaml* file, the program can be run as follows:
 ```
-python3 Launch.py
-```
-Which can also be achieved, alternatively, with the shellscript that also ensures the python environment is set up:
-```
-source run.sh
+python3 Mine.py
 ```
 
-The following lists all of the example arguments (all are optional, and defaults will be used instead)"
+## Viewing Results
+You can view the results using the jupyter notebook inside the directory. To run Jupyter notebook, enter the following into a command prompt (NOTE: you must be in the virtual environment, or in other words have the "(lassomining)" tag in the command line):
 ```
-python3 Launch.py -name testRun -pattern M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\* -cutuff -100 -genome /tigress/nalam/genomeMining/genomes/* -o /tigress/nalam/genomeMining/matches.db -rundata /tigress/nalam/genomeMining/runs/ -model /tigress/nalam/genomeMining/models/b.faa:3:25,/tigress/nalam/genomeMining/models/c.faa:4:25
+jupyter notebook
 ```
-
-Note that the flag "-model" has the format such that individual models are separated by ",", and each model requires three sections, separated by ":", corresonding to the file location, the number of motifs to generate, and the maximum width per motif.
+Then, you can enter the notebook and analyze the results as you wish. More instructions and example analyses are available on the notebook.
