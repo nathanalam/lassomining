@@ -13,6 +13,7 @@ import pandas as pd
 import sqlite3
 import Bio
 import time
+from pathlib import Path
 from Bio.Seq import Seq, reverse_complement, translate
 from Bio.Alphabet import IUPAC
 
@@ -614,7 +615,7 @@ try:
         
     if not os.path.exists(runDir + runName + ".json"):
         print("writing output logs to " + runDir + runName + ".json")
-        os.mknod(runDir + runName + ".json")
+        Path(runDir + runName + ".json").touch()
     
     # create genome folder if not already there
     if not os.path.exists(genomeDir):
@@ -631,7 +632,7 @@ try:
         os.makedirs(databaseFolder)
     if not os.path.exists(databaseDir):
         print("Could not find " + databaseDir + ", attempting to create...")
-        os.mknod(databaseDir)
+        Path(databaseDir).touch()
     
     # get the list of queries
     queries = os.listdir(genomeDir)
