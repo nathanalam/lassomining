@@ -4,17 +4,17 @@
 runName: "nameOfRun"
 pattern: 'M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*'
 cutoffRank: 10
-genomeDir: "/home/nalam/lassomining/genomes/"
-database: "/home/nalam/lassomining/output/matches.db"
-outputLogs: "/home/nalam/lassomining/output/runs/"
+genomeDir: "/home/blucheez/Projects/lassomining/genomes/"
+database: "/home/blucheez/Projects/lassomining/output/matches.db"
+outputLogs: "/home/blucheez/Projects/lassomining/output/runs/"
 models:
-  - location: "/tigress/nalam/genomeMining/models/b.faa"
+  - location: "/home/blucheez/Projects/lassomining/models/b.faa"
     numOfMotifs: 3
     maxWidth: 25
-  - location: "/tigress/nalam/genomeMining/models/c.faa"
+  - location: "/home/blucheez/Projects/lassomining/models/c.faa"
     numOfMotifs: 4
     maxWidth: 25
   
 ## Parameters you should not have to change
-memeDir: "/home/nalam/meme"
-localMotifDir: "/home/nalam/lassomining/motifs/"
+memeDir: "/home/blucheez/meme"
+localMotifDir: "/home/blucheez/Projects/lassomining/motifs/"

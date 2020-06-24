@@ -342,18 +342,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
     return Aproteins
 
 
-def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir, motifDir):
-    # create a database file if one doesn't already exist
-    databaseFolder = databaseDir.split("/")
-    databaseFolder = "/".join(databaseFolder[0:len(memeName) - 1])
-    
-    if not os.path.exists(databaseFolder):
-        print("creating database directory " + databaseFolder)
-        os.makedirs(databaseFolder)
-    if not os.path.exists(databaseDir):
-        print("Could not find " + databaseDir + ", attempting to create...")
-        os.mknod(databaseDir)
-    
+def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir, motifDir):    
     conn = sqlite3.connect(databaseDir)
 
     c = conn.cursor()
@@ -385,22 +374,7 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir
                 json.dumps(str(peptide['closestProts'])),
                 json.dumps(str(peptide['closestProtLists']))]
             )
-            if(toFirestore):
-                print("Inserting " + peptide['sequence'] + " into Firestore")
-                data = {
-                    "sequence": peptide['sequence'], 
-                    "start": peptide['searchRange'][0], 
-                    "end": peptide['searchRange'][1], 
-                    "overallLength": peptide['overallLength'], 
-                    "rank": peptide['rank'], 
-                    "orf": peptide['ORF'], 
-                    "genome": peptide['genome'], 
-                    "accession": peptide['index'], 
-                    "runName": peptide['runName'], 
-                    "closestProts": json.dumps(str(peptide['closestProts'])), 
-                    "closestProtLists": json.dumps(str(peptide['closestProtLists']))
-                }
-        
+          
         matchedProteins.extend(buffer)
 
     submitted = False
@@ -527,10 +501,6 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall, m
     ## translate the downloaded file into amino acid sequence
     count = 0
     
-    if not os.path.exists(genomeFolder):
-        print("could not find " + genomeFolder + ", attempting to make it")
-        os.makedirs(genomeFolder)
-
     print("translating fna files in directory folder " + genomeFolder)
     ALLDIRNAMES = os.listdir(genomeFolder)
     for dirname in ALLDIRNAMES:
@@ -645,6 +615,23 @@ try:
     if not os.path.exists(runDir + runName + ".json"):
         print("writing output logs to " + runDir + runName + ".json")
         os.mknod(runDir + runName + ".json")
+    
+    # create genome folder if not already there
+    if not os.path.exists(genomeDir):
+        print("could not find " + genomeDir + ", attempting to make it")
+        os.makedirs(genomeDir)
+
+    # create output database if not already there
+    # create a database file if one doesn't already exist
+    path = databaseDir.split("/")
+    databaseFolder = "/".join(path[0:len(path) - 1])
+    
+    if not os.path.exists(databaseFolder):
+        print("creating database directory " + databaseFolder)
+        os.makedirs(databaseFolder)
+    if not os.path.exists(databaseDir):
+        print("Could not find " + databaseDir + ", attempting to create...")
+        os.mknod(databaseDir)
     
     # get the list of queries
     queries = os.listdir(genomeDir)
