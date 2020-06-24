@@ -112,3 +112,8 @@ sudo apt-get purge ipython
 sudo apt-get autoremove
 pip install jupyter
 ```
+
+And then to run the visualizer, use:
+```
+python -m IPython notebook
+```
