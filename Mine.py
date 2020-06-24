@@ -1,11 +1,12 @@
-import argparse
 import os
 import time
 import json
 import shutil
 import sys
+import yaml
 
 import re
+import traceback
 import sys
 import math
 import pandas as pd
@@ -15,46 +16,34 @@ import time
 from Bio.Seq import Seq, reverse_complement, translate
 from Bio.Alphabet import IUPAC
 
-## Locations for dependencies - memeDir points to installation location of meme suite, localmotifDir is a temp folder
-memeDir = "/home/nalam/meme"
-localmotifDir = "/home/nalam/lassomining/motifs/"
+# Reading parameters from the config file
+config = None
+with open("config.yaml") as file:
+    config = yaml.load(file)
+    
+if (config is None):
+    print("Error reading config.yaml")
+    sys.exit(1)
 
-# Method to convert a string into a list of meme jobs
-def meme_job(string):
-    jobs = string.split(",")
-    jobList = []
-    for j in jobs:
-        s = j.split(":")
-        file = s[0]
-        nmotif = s[1]
-        width = s[2]
-        jobList.append([file, int(nmotif), int(width)])
-    return jobList
+print("read the following from config.yaml")
+print(config)
 
-# Optional command line arguments with default values
-parser = argparse.ArgumentParser()
-parser.add_argument('-name', action="store", dest="runName", default="testRun")
-parser.add_argument('-pattern', action="store", dest="pattern", default="M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*")
-parser.add_argument('-cutoff', action="store", dest="cutoff", default="-100")
-parser.add_argument('-genome', action="store", dest="genome", default="/tigress/nalam/genomeMining/genomes/*")
-parser.add_argument('-o', action="store", dest="outputDir", default="/tigress/nalam/genomeMining/output/matches.db")
-parser.add_argument('-rundata', action="store", dest="rundata", default="/tigress/nalam/genomeMining/output/runs/")
-parser.add_argument('-model', action="store", dest="model", 
-    default="/tigress/nalam/genomeMining/models/b.faa:3:25,/tigress/nalam/genomeMining/models/c.faa:4:25")
+runName = config["runName"]
+pattern = config["pattern"]
+cutoffRank = config["cutoffRank"]
+genomeDir = config["genomeDir"]
+databaseDir = config["database"]
+runDir = config["outputLogs"]
+memeJobs = []
+for model in config["models"]:
+    memeJobs.append([
+            model["location"],
+            model["numOfMotifs"],
+            model["maxWidth"]
+        ])
 
-# Reading command line arguments
-args = parser.parse_args()
-runName = args.runName
-pattern = args.pattern
-cutoffRank = float(args.cutoff)
-genome = args.genome
-genomeDir = ""
-if (genome[len(genome) - 1] == "*"):
-    genomeDir = genome[:len(genome) - 1]
-databaseDir = args.outputDir
-runDir = args.rundata
-memeJobs = meme_job(args.model)
-toFirestore = False
+localMotifDir = config["localMotifDir"]
+memeDir = config["memeDir"]
 
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
@@ -354,6 +343,17 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
 
 
 def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir, motifDir):
+    # create a database file if one doesn't already exist
+    databaseFolder = databaseDir.split("/")
+    databaseFolder = "/".join(databaseFolder[0:len(memeName) - 1])
+    
+    if not os.path.exists(databaseFolder):
+        print("creating database directory " + databaseFolder)
+        os.makedirs(databaseFolder)
+    if not os.path.exists(databaseDir):
+        print("Could not find " + databaseDir + ", attempting to create...")
+        os.mknod(databaseDir)
+    
     conn = sqlite3.connect(databaseDir)
 
     c = conn.cursor()
@@ -526,6 +526,10 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall, m
 
     ## translate the downloaded file into amino acid sequence
     count = 0
+    
+    if not os.path.exists(genomeFolder):
+        print("could not find " + genomeFolder + ", attempting to make it")
+        os.makedirs(genomeFolder)
 
     print("translating fna files in directory folder " + genomeFolder)
     ALLDIRNAMES = os.listdir(genomeFolder)
@@ -589,80 +593,88 @@ print("cutting off hits below " + str(cutoffRank))
 print("searching for pattern " + pattern)
 print("Meme jobs to be run:")
 print(memeJobs)
-if (genome[len(genome) - 1] == "*"):
-    genomeDir = genome[:len(genome) - 1]
-    print("Genomes being read from " + str(genomeDir))
-else:
-    print("readingn genome " + genome)
+print("Genomes being read from " + str(genomeDir))
 print("writing output to " + databaseDir)
 
-# Generate motifs and store them in localmotifDir
-for memeJob in memeJobs:
-    memeName = memeJob[0].split("/")
-    modelDir = "/".join(memeName[0: len(memeName) - 1]) + "/"
-    memeName = memeName[len(memeName) - 1]
-    model = memeName
-    memeName = memeName[0: len(memeName) - 4]
-    nmotifs = memeJob[1]
-    width = memeJob[2]
-    print("creating meme motifs for " + memeName)
-    print("reading from " + modelDir + model)
-    command = memeDir + "/bin/meme -nmotifs " + str(nmotifs) + " -maxw " + str(width) + " " + modelDir + model + " -o " + localmotifDir + memeName
-    print(command)
-    os.system(command)
+try:
+    # check if the localMotifDir exists
+    if not os.path.exists(localMotifDir):
+        print("creating a folder " + localMotifDir + " for temporary files")
+        os.makedirs(localMotifDir)
+    # Generate motifs and store them in localMotifDir
+    for memeJob in memeJobs:
+        memeName = memeJob[0].split("/")
+        modelDir = "/".join(memeName[0: len(memeName) - 1]) + "/"
+        memeName = memeName[len(memeName) - 1]
+        model = memeName
+        memeName = memeName[0: len(memeName) - 4]
+        nmotifs = memeJob[1]
+        width = memeJob[2]
+        print("creating meme motifs for " + memeName)
+        print("reading from " + modelDir + model)
+        command = memeDir + "/bin/meme -nmotifs " + str(nmotifs) + " -maxw " + str(width) + " " + modelDir + model + " -o " + localMotifDir + memeName
+        print(command)
+        os.system(command)
+    
+        os.rename(localMotifDir + memeName + "/meme.txt", localMotifDir + memeName + "Results.txt")
+        shutil.rmtree(localMotifDir + memeName)
+except Exception as error:
+    print("An error occured while running MEME")
+    traceback.print_tb(sys.exc_info()[2])
+    print(str(error))
 
-    os.rename(localmotifDir + memeName + "/meme.txt", localmotifDir + memeName + "Results.txt")
-    shutil.rmtree(localmotifDir + memeName)
-
-# start a timer
-t0 = time.time()
-
-# store meta data about the particular run
-runStatus = {
-    "name": runName,
-    "pattern": pattern,
-    "input": [],
-    "progress": 0.0,
-    "peptides": 0,
-    "cutoff": cutoffRank
-}
-
-# create a run file to log the progress of this run
-if not os.path.exists(runDir + runName + ".json"):
-    os.mknod(runDir + runName + ".json")
-
-# get the list of queries
-queries = os.listdir(genomeDir)
-
-
-# define a function to progressively update the current status of the run
-
-def updateRun(message, number, count, accession):
-    runStatus["phase"] = message
-    runStatus["totalTime"] = time.time() - t0
-    runStatus["input"].append(accession)
-    runStatus["progress"] = str((number * 1.0) / len(queries))
-    runStatus["peptides"] = count
-    with open(runDir + runName + '.json', 'w+') as outputFile:
-        outputFile.write(json.dumps(runStatus))
-
-count = 0
-peptideCount = 0
-
-for query in queries:
-    peptideCount += mine(genomeDir, runName, pattern, cutoffRank, databaseDir, memeDir, localmotifDir)
-    count += 1
-    updateRun("processing" + query, count, peptideCount, query)
-
-print("finished all the runs for " + runName)
-
-# Delete all of the temporary files
-for memeJob in memeJobs:
-    memeName = memeJob[0].split("/")
-    memeName = memeName[len(memeName) - 1]
-    memeName = memeName[0: len(memeName) - 4]
-    if os.path.exists(localmotifDir + memeName + "Results.txt"):
-        os.remove(localmotifDir + memeName + "Results.txt")
+try:
+    # start a timer
+    t0 = time.time()
+    
+    # store meta data about the particular run
+    runStatus = {
+        "name": runName,
+        "pattern": pattern,
+        "input": [],
+        "progress": 0.0,
+        "peptides": 0,
+        "cutoff": cutoffRank
+    }
+    
+    # create a run file to log the progress of this run
+    if not os.path.exists(runDir):
+        print("creating output directory " + runDir)
+        os.makedirs(runDir)
         
+    if not os.path.exists(runDir + runName + ".json"):
+        print("writing output logs to " + runDir + runName + ".json")
+        os.mknod(runDir + runName + ".json")
+    
+    # get the list of queries
+    queries = os.listdir(genomeDir)
+    
+    
+    # define a function to progressively update the current status of the run
+    
+    def updateRun(message, number, count, accession):
+        runStatus["phase"] = message
+        runStatus["totalTime"] = time.time() - t0
+        runStatus["input"].append(accession)
+        runStatus["progress"] = str((number * 1.0) / len(queries))
+        runStatus["peptides"] = count
+        with open(runDir + runName + '.json', 'w+') as outputFile:
+            outputFile.write(json.dumps(runStatus))
+    
+    count = 0
+    peptideCount = 0
+    
+    for query in queries:
+        peptideCount += mine(genomeDir, runName, pattern, cutoffRank, databaseDir, memeDir, localMotifDir)
+        count += 1
+        updateRun("processing" + query, count, peptideCount, query)
+    
+    print("finished all the runs for " + runName)
+except Exception as error: 
+    print("An error occured while mining")
+    traceback.print_tb(sys.exc_info()[2])
+    print(str(error))
 
-
+# Delete all of the temporary MEME files
+if os.path.exists(localMotifDir):
+    shutil.rmtree(localMotifDir)

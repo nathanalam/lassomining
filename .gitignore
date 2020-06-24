@@ -5,6 +5,7 @@
 *.json
 *.csv
 *.db
+genomes
 
 bin
 include
