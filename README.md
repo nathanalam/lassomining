@@ -62,21 +62,17 @@ Finally, keep track of where the meme installation ultimately got installed. You
 #### GitHub Codebase:
 Open a terminal and type the following commands in a terminal:
 ```
-git clone https://github.com/nathanalam/genomemining.git
-pip3 install virtualenv
-python3 -m venv lassomining
-cd genomemining
+git clone https://github.com/nathanalam/lassomining.git
 ```
-The command line should now have a (lassomining) tag behind it.
 
 #### Python libraries
 To install the python libraries in the virtual environment, type the following:
 ```
-git clone https://github.com/nathanalam/lassomining.git
 pip3 install virtualenv
 python3 -m venv lassomining
 cd lassomining
 ```
+The command line should now have a (lassomining) tag behind it.
 
 Then, once inside the directory, activate the virtual environment:
 ```
