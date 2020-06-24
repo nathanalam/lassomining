@@ -21,7 +21,7 @@ make install
 ```
 That's what they say on the website. Most of the time, things don't work though, because there is some pre-requisite software that isn't installed. Here are things that I found to be useful steps to resolve this (the goal is such that after running make test, the commands for "meme" and "mast" pass (these are the two suites that we will use)
 
-#####PERL
+**PERL**
 Hopefully you have Perl! If not, this is another pre-requisite, although usually it comes pre-installed. Here is the reference: https://www.perl.org/get.html
 You will also need to install the Perl dependencies. To check which ones are missing, type the following in the meme directory:
 ```
@@ -39,7 +39,7 @@ sudo cpan XML::Simple
 sudo cpan XML::Parser::Expat
 ```
 
-#####zlib
+**zlib**
 This one is a little weird to install - try the following commands, if neither work you may need to look up how to install zlib separately (on Della, had to install it manually from a download link):
 ```
 sudo port install zlib
@@ -47,10 +47,10 @@ sudo port install zlib
 ```
 sudo apt-get install zlib1g-dev
 ```
-#####Other things that helped
+**Other things that helped**
 This was on UNIX, I got them by going to the scripts directory and running `perl dependencies.pl`
 
-#####Trying again
+**Trying again**
 After downloading necessary pre-requisites, try the installation again by running
 ```
 make test
