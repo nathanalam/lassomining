@@ -83,6 +83,7 @@ You will see a (lassomining) identifier in the command line now, indicating that
 pip3 install biopython
 pip3 install pandas
 pip3 install jupyter
+pip install jupyter
 ```
 ## Operation
 You can run this on a local computer, or you can run this using a [SLURM script](https://researchcomputing.princeton.edu/education/online-tutorials/getting-started/introducing-slurm)
