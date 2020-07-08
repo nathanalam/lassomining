@@ -1,20 +1,20 @@
 # Setup parameters for a genome mining run
 
 ## Parameters for each run
-runName: "nameOfRun"
+runName: "caulobacteraceaeHomologsSpecific"
 pattern: 'M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*'
-cutoffRank: 0
-genomeDir: "/Users/nalam/Desktop/genomeminingdemo/genomes/"
-database: "/Users/nalam/Desktop/genomeminingdemo/output/matches.db"
-outputLogs: "/Users/nalam/Desktop/genomeminingdemo/output/runs/"
+cutoffRank: -1
+genomeDir: "/home/blucheez/Projects/lassomining/genomes/"
+database: "/home/blucheez/Projects/lassomining/output/matches.db"
+outputLogs: "/home/blucheez/Projects/lassomining/output/runs/"
 models:
-  - location: "/Users/nalam/Desktop/genomeminingdemo/models/b.faa"
+  - location: "/home/blucheez/Projects/lassomining/models/b.faa"
     numOfMotifs: 3
     maxWidth: 25
-  - location: "/Users/nalam/Desktop/genomeminingdemo/models/c.faa"
+  - location: "/home/blucheez/Projects/lassomining/models/c.faa"
     numOfMotifs: 4
     maxWidth: 25
   
-## Parameters you should not have to change
-memeDir: "/Users/nalam/meme"
-localMotifDir: "/Users/nalam/Desktop/genomeminingdemo/lassomining/motifs"
+## Parameters you should not have to change between runs
+memeDir: "/home/blucheez/meme"
+localMotifDir: "/home/blucheez/Projects/lassomining/motifs/"

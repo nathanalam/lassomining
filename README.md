@@ -92,6 +92,8 @@ The default directories are listed in *config.yaml* file within the repository. 
 
 This file holds parameters which wizkll be specific to each run, and also other variables that you may want to alter.
 
+Alternatively, you can run this with more fine control in the Jupyter notebook entitled "View.ipynb", where you can again specify configuration schemes within the notebook itself.
+
 ### Example Usage
 After editing the *config.yaml* file, the program can be run as follows:
 ```
@@ -99,7 +101,7 @@ python3 Mine.py
 ```
 
 ## Viewing Results
-You can view the results using the jupyter notebook inside the directory. To run Jupyter notebook, enter the following into a command prompt (NOTE: you must be in the virtual environment, or in other words have the "(lassomining)" tag in the command line):
+You can also run and view the results using the jupyter notebook inside the directory. To run Jupyter notebook, enter the following into a command prompt (NOTE: you must be in the virtual environment, or in other words have the "(lassomining)" tag in the command line):
 ```
 jupyter notebook
 ```
@@ -117,3 +119,5 @@ And then to run the visualizer, use:
 ```
 python -m IPython notebook
 ```
+
+From there, the notebook can also guide the mining process - note that the MEME suite is also required for the Jupyter notebook method, and the installation directory of that suite must be recorded.
