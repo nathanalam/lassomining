@@ -534,9 +534,6 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall, m
     return count
 
 # GUI specific functions
-def hello ():  
-    label1 = tk.Label(root, text= 'Hello World!', fg='green', font=('helvetica', 12, 'bold'))
-    canvas1.create_window(150, 200, window=label1)
 
 # read in default values
 config = {
