@@ -68,27 +68,27 @@ git clone https://github.com/nathanalam/lassomining.git
 #### Python libraries
 To install the python libraries in the virtual environment, type the following:
 ```
-pip3 install virtualenv
-python3 -m venv lassomining
 cd lassomining
+pip3 install virtualenv
+python3 -m venv venv
 ```
 The command line should now have a (lassomining) tag behind it.
 
 Then, once inside the directory, activate the virtual environment:
 ```
-source bin/activate
+source venv/bin/activate
 ```
 You will see a (lassomining) identifier in the command line now, indicating that you are in the virtual environment and are safe to freely download libraries without making global changes to your python installation. Now, you can install the necessary libraries (you can copy and paste the following into the command prompt):
 ```
-pip3 install biopython
-pip3 install pandas
-pip3 install jupyter
+pip install pip-tools
+pip-compile
+pip install -r requirements.txt
 ```
 ## Operation
 You can run this on a local computer, or you can run this using a [SLURM script](https://researchcomputing.princeton.edu/education/online-tutorials/getting-started/introducing-slurm)
 
 ### Configuration
-The default directories are listed in *config.yaml* file within the repository. Change them as you see fit for your use case - the file is commented with more details about what each of the parameters mean.
+The default directories are listed in *config.yml.template* file within the repository. Copy this file and rename it to *config.yml* and change them as you see fit for your use case - the file is commented with more details about what each of the parameters mean.
 
 This file holds parameters which wizkll be specific to each run, and also other variables that you may want to alter.
 
