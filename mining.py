@@ -1,5 +1,3 @@
-import tkinter as tk
-from tkinter import filedialog
 import os
 import time
 import json
@@ -17,9 +15,14 @@ import Bio
 import time
 from pathlib import Path
 from Bio.Seq import Seq, reverse_complement, translate
-from Bio.Alphabet import IUPAC
 
-# Mining specific functions
+# some flags for debugging
+REMOVE_GENOMES_ON_TRANSLATE = False
+PRINT_EACH_FIND = True
+PRINT_EACH_WRITE = False
+# put -1 to take all above the cutoff
+TAKE_TOP_N = 10
+
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
 an object that contains a list of sequence objects. Each sequence object has a description field 
@@ -187,7 +190,11 @@ The function returns a list of matched proteins, which have a specific sequence,
 nearest B/C cluster, and range within the overall sequence.
 '''
 def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstall, motifDir):
+    # the matched peptides themselves
     Aproteins = []
+    minRank = -100
+    minRankIndex = 0
+    # an array of arrays of auxillary proteins (B, C, any other motif specified proteins)
     AuxProteins = []
 
     for i in range(0, len(os.listdir(motifDir))):
@@ -195,8 +202,8 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
     
     
     ## generate all motif match sets to go into AuxProteins
-    ORFs = [1, 2, 3, -1, -2, -3]
-    ORF = 0
+    ReadingFrames = [1, 2, 3, -1, -2, -3]
+    RFindex = 0
     for pair in sequenceORFs:
         overallSequence = pair["sequence"]
         motifMatches = mastSearch(overallSequence, motifDir, memeInstall)
@@ -204,23 +211,23 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
         index = 0
         for matchSet in motifMatches:
             # adjust the matchSet for the current ORF
-            for b in matchSet:
-                b["ORF"] = ORFs[ORF]
-                prange = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, b["start"] * 3, b["end"] * 3)
-                b["start"] = prange[0]
-                b["end"] = prange[1]
+            for match in matchSet:
+                match["ORF"] = ReadingFrames[RFindex]
+                prange = adjustRangeByORF(ReadingFrames[RFindex], len(overallSequence) * 3, match["start"] * 3, match["end"] * 3)
+                match["start"] = prange[0]
+                match["end"] = prange[1]
 
             AuxProteins[index].extend(matchSet)
             index += 1
     
-        ORF += 1
+        RFindex += 1
         
-    ## create all of the cluster points, and give them a score
-    ORF = 0
+    ## find and score each of the potential precursor sequences
+    RFindex = 0
     for pair in sequenceORFs:
         overallSequence = pair["sequence"]
         description = pair["description"]
-        # find all matches in protein that match
+        # find all matches in sequence that match the pattern
         matchIter = re.finditer(pattern, overallSequence)
         done_looping = False
         while not done_looping:
@@ -231,7 +238,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
             else:
                 # get the correct range based on span
                 indices = list(match.span())
-                indices = adjustRangeByORF(ORFs[ORF], len(overallSequence) * 3, indices[0] * 3, indices[1] * 3)
+                indices = adjustRangeByORF(ReadingFrames[RFindex], len(overallSequence) * 3, indices[0] * 3, indices[1] * 3)
 
                 # make the ranking calculation and find closest B and C
                 start = indices[0]
@@ -243,8 +250,11 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
 
                 closestProts = []
                 closestProtLists = []
-
                 
+                """
+                Rank the peptide according to the identified motifs
+                """
+                # go through each match set, I ~= B, C, D, etc.
                 for IProteins in AuxProteins:
                     if (rank is 0):
                         continue
@@ -257,8 +267,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                     motifTable = {}
                     for prot in IProteins:
                         if isOverlapping(start, end, prot["start"], prot["end"]):
-                            # print(str(start) + "-" + str(end) + " |B at " + str(prot["start"]) + "-" + str(prot["end"]))
-                            # print(prot)
+                            # skip if precursor overlaps with a motif match
                             continue
                         if not prot["motif"] in motifTable:
                             motifTable[prot["motif"]] = []
@@ -272,8 +281,8 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                         for prot in motifTable[motif]:
                             
                             # skip if not in same direction
-                            if not ((prot["ORF"] > 0 and ORFs[ORF] > 0) or (prot["ORF"] < 0 and ORFs[ORF] < 0)):
-                                continue
+                            # if not ((prot["ORF"] > 0 and ReadingFrames[RFindex] > 0) or (prot["ORF"] < 0 and ReadingFrames[RFindex] < 0)):
+                            #     continue
                             
                             diffsquared = (prot["start"] - start) ** 2
                             diffsquared = diffsquared * prot["p-value"]
@@ -296,8 +305,45 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                 descriptors = description.split()
                 # append the protein to the list of proteins
                 if (rank >= cutoffRank):
-                    print("Found peptide " + match.group(0) + ", rank " + str(rank) +", in " + filenam)
-                    Aproteins.append({
+
+                    if(PRINT_EACH_FIND):
+                        print("Found peptide " + match.group(0) + ", rank " + str(rank) +", in " + filenam)
+                    if(TAKE_TOP_N > 0):
+                        if(rank >= minRank):
+                            newA = {
+                                "description": description,
+                                "sequence": match.group(0),
+                                "searchPattern": match.re.pattern,
+                                "searchRange": indices,
+                                "overallLength": len(overallSequence) * 3,
+                                "rank": rank,
+                                "closestProts": closestProts,
+                                "closestProtLists": closestProtLists,
+                                "readingFrame": ReadingFrames[RFindex],
+                                "genome": descriptors[1] + " " + descriptors[2],
+                                "index": descriptors[0],
+                                "runName": runName
+                                ## "overallString": match.string
+                            }
+                            if(len(Aproteins) > TAKE_TOP_N):
+                                # kick out the lowest ranked
+                                minRank = Aproteins[0]["rank"]
+                                minRankIndex = 0
+                                ind = 0
+                                for aProt in Aproteins:
+                                    if(aProt["rank"] < minRank):
+                                        minRank = aProt["rank"]
+                                        minRankIndex = ind 
+                                    ind += 1
+                                Aproteins[minRankIndex] = newA
+                                ind = 0
+                                for aProt in Aproteins:
+                                    ind += 1
+                            else:
+                                Aproteins.append(newA)
+                            
+                        continue
+                    newA = {
                         "description": description,
                         "sequence": match.group(0),
                         "searchPattern": match.re.pattern,
@@ -306,14 +352,15 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                         "rank": rank,
                         "closestProts": closestProts,
                         "closestProtLists": closestProtLists,
-                        "ORF": ORFs[ORF],
+                        "readingFrame": ReadingFrames[RFindex],
                         "genome": descriptors[1] + " " + descriptors[2],
                         "index": descriptors[0],
                         "runName": runName
                         ## "overallString": match.string
-                    })
+                    }
+                    Aproteins.append(newA)
                 
-        ORF += 1
+        RFindex += 1
     return Aproteins
 
 
@@ -335,14 +382,15 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall, genomeDir
         buffer = patternMatch(readSequences[i: i + 6], pattern, genomeDir, runName, cutoffRank, memeInstall, motifDir)
         print("Found " + str(len(buffer)) + " peptides in this set of ORFs")
         for peptide in buffer:
-            print("Inserting " + peptide['sequence'] + " into sqlite database")
+            if(PRINT_EACH_WRITE):
+                print("Inserting " + peptide['sequence'] + " into sqlite database")
             c.execute("INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                 [peptide['sequence'],
                 peptide['searchRange'][0],
                 peptide['searchRange'][1],
                 peptide['overallLength'],
                 peptide['rank'],
-                peptide['ORF'],
+                peptide['readingFrame'],
                 peptide['genome'],
                 peptide['index'],
                 peptide['runName'],
@@ -492,10 +540,11 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall, m
 		
                 continue
 
-            try:
-                os.remove(genomeFolder + dirname)
-            except:
-                continue
+            if(REMOVE_GENOMES_ON_TRANSLATE):
+                try:
+                    os.remove(genomeFolder + dirname)
+                except:
+                    continue
                 
             entries = []
             for i in range(0, len(DNAseqs)):
@@ -532,363 +581,3 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall, m
         
 
     return count
-
-# GUI specific functions
-
-# read in default values
-config = {
-    "runName": "nameOfRun",
-    "pattern": "M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*",
-    "cutoffRank": "0",
-    "genomeDir": "C:/Users/natha/Desktop/genomeminingdemo/genomes/",
-    "database": "C:/Users/natha/Desktop/genomeminingdemo/output/matches.db",
-    "outputLogs": "C:/Users/natha/Desktop/genomeminingdemo/output/runs/",
-    "models": '''[{'location': '/Users/nalam/Desktop/genomeminingdemo/models/b.faa',
-  'maxWidth': '25',
-  'numOfMotifs': '3'}, {'location': '/Users/nalam/Desktop/genomeminingdemo/models/c.faa',
-  'maxWidth': '25',
-  'numOfMotifs': '4'}]
-''',
-    "memeDir": "/Users/nalam/meme",
-    "localMotifDir": "C:/Users/natha/Desktop/genomeminingdemo/temp",
-}
-try:
-    with open("config.yaml") as file:
-        config = yaml.load(file)
-except Exception as error:
-    print("Could not find an adjacent config.yaml")
-
-
-# Make the GUI features    
-root= tk.Tk()
-scrollbar = tk.Scrollbar(root)
-
-listbox = tk.Listbox(root, yscrollcommand=scrollbar.set)
-for i in range(1000):
-    listbox.insert(tk.END, str(i))
-
-scrollbar.config(command=listbox.yview)
-
-tk.Label(root, text="Run Name").grid(row=0)
-tk.Label(root, text="Search Pattern").grid(row=1)
-tk.Label(root, text="Cutoff Rank").grid(row=2)
-tk.Label(root, text="Genome Directory").grid(row=3)
-tk.Label(root, text="Database Path").grid(row=4)
-tk.Label(root, text="Output Directory").grid(row=5)
-tk.Label(root, text="Models").grid(row=6)
-tk.Label(root, text="Motif Temporary Space").grid(row=7)
-tk.Label(root, text="MEME Install Path").grid(row=8)
-
-def fillGenome():
-    currdir = os.getcwd()
-    tempdir = filedialog.askdirectory(parent=root, initialdir=currdir, title='Please select a directory')
-    e4.delete(0, tk.END)
-    e4.insert(10, tempdir + "/")
-
-def fillDatabase():
-    currdir = os.getcwd()
-    tempdir = filedialog.askopenfilename(parent=root, initialdir=currdir, title='Please select a directory')
-    e5.delete(0, tk.END)
-    e5.insert(10, tempdir)
-
-def fillOutput():
-    currdir = os.getcwd()
-    tempdir = filedialog.askdirectory(parent=root, initialdir=currdir, title='Please select a directory')
-    e6.delete(0, tk.END)
-    e6.insert(10, tempdir + "/")
-
-def fillLocalMotif():
-    currdir = os.getcwd()
-    tempdir = filedialog.askdirectory(parent=root, initialdir=currdir, title='Please select a directory')
-    e8.delete(0, tk.END)
-    e8.insert(10, tempdir)
-
-def fillMeme():
-    currdir = os.getcwd()
-    tempdir = filedialog.askdirectory(parent=root, initialdir=currdir, title='Please select a directory')
-    e9.delete(0, tk.END)
-    e9.insert(10, tempdir)
-    
-
-e1 = tk.Entry(root, width=60)
-e1.insert(10, config["runName"])
-e2 = tk.Entry(root, width=60)
-e2.insert(10, config["pattern"])
-e3 = tk.Entry(root, width=60)
-e3.insert(10, config["cutoffRank"])
-e4 = tk.Entry(root, width=60)
-e4.insert(10, config["genomeDir"])
-tk.Button(root, text='Browse...', command=fillGenome).grid(row=3, column=2, sticky=tk.W, pady=4)
-e5 = tk.Entry(root, width=60)
-e5.insert(10, config["database"])
-tk.Button(root, text='Browse...', command=fillDatabase).grid(row=4, column=2, sticky=tk.W, pady=4)
-e6 = tk.Entry(root, width=60)
-e6.insert(10, config["outputLogs"])
-tk.Button(root, text='Browse...', command=fillOutput).grid(row=5, column=2, sticky=tk.W, pady=4)
-e7 = tk.Text(root, width=60)
-e7.insert(tk.END, config["models"])
-e8 = tk.Entry(root, width=60)
-e8.insert(10, config["localMotifDir"])
-tk.Button(root, text='Browse...', command=fillLocalMotif).grid(row=7, column=2, sticky=tk.W, pady=4)
-e9 = tk.Entry(root, width=60)
-e9.insert(10, config["memeDir"])
-tk.Button(root, text='Browse...', command=fillMeme).grid(row=8, column=2, sticky=tk.W, pady=4)
-
-e1.grid(row=0, column=1)
-e2.grid(row=1, column=1)
-e3.grid(row=2, column=1)
-e4.grid(row=3, column=1)
-e5.grid(row=4, column=1)
-e6.grid(row=5, column=1)
-e7.grid(row=6, column=1)
-e8.grid(row=7, column=1)
-e9.grid(row=8, column=1)
-
-def runGui():
-    print("read the following from user input")
-    runName = e1.get()
-    pattern = e2.get()
-    cutoffRank = float(e3.get())
-    genomeDir = e4.get()
-    databaseDir = e5.get()
-    runDir = e6.get()
-    memeJobs = []
-    models = yaml.load(e7.get("1.0", tk.END))
-    for model in models:
-        print(model)
-        memeJobs.append([
-                model["location"],
-                model["numOfMotifs"],
-                model["maxWidth"]
-            ])
-    localMotifDir = e8.get()
-    memeDir = e9.get()
-
-    print("Beginning run " + runName)
-    print("cutting off hits below " + str(cutoffRank))
-    print("searching for pattern " + pattern)
-    print("Meme jobs to be run:")
-    print(memeJobs)
-    print("Genomes being read from " + str(genomeDir))
-    print("writing output to " + databaseDir)
-
-    try:
-        # check if the localMotifDir exists
-        if not os.path.exists(localMotifDir):
-            print("creating a folder " + localMotifDir + " for temporary files")
-            os.makedirs(localMotifDir)
-        # Generate motifs and store them in localMotifDir
-        for memeJob in memeJobs:
-            memeName = memeJob[0].split("/")
-            modelDir = "/".join(memeName[0: len(memeName) - 1]) + "/"
-            memeName = memeName[len(memeName) - 1]
-            model = memeName
-            memeName = memeName[0: len(memeName) - 4]
-            nmotifs = memeJob[1]
-            width = memeJob[2]
-            print("creating meme motifs for " + memeName)
-            print("reading from " + modelDir + model)
-            command = memeDir + "/bin/meme -nmotifs " + str(nmotifs) + " -maxw " + str(width) + " " + modelDir + model + " -o " + localMotifDir + memeName
-            print(command)
-            os.system(command)
-        
-            os.rename(localMotifDir + memeName + "/meme.txt", localMotifDir + memeName + "Results.txt")
-            shutil.rmtree(localMotifDir + memeName)
-    except Exception as error:
-        print("An error occured while running MEME")
-        traceback.print_tb(sys.exc_info()[2])
-        print(str(error))
-
-    try:
-        # start a timer
-        t0 = time.time()
-        
-        # store meta data about the particular run
-        runStatus = {
-            "name": runName,
-            "pattern": pattern,
-            "input": [],
-            "progress": 0.0,
-            "peptides": 0,
-            "cutoff": cutoffRank
-        }
-        
-        # create a run file to log the progress of this run
-        if not os.path.exists(runDir):
-            print("creating output directory " + runDir)
-            os.makedirs(runDir)
-            
-        if not os.path.exists(runDir + runName + ".json"):
-            print("writing output logs to " + runDir + runName + ".json")
-            Path(runDir + runName + ".json").touch()
-        
-        # create genome folder if not already there
-        if not os.path.exists(genomeDir):
-            print("could not find " + genomeDir + ", attempting to make it")
-            os.makedirs(genomeDir)
-
-        # create output database if not already there
-        # create a database file if one doesn't already exist
-        path = databaseDir.split("/")
-        databaseFolder = "/".join(path[0:len(path) - 1])
-        
-        if not os.path.exists(databaseFolder):
-            print("creating database directory " + databaseFolder)
-            os.makedirs(databaseFolder)
-        if not os.path.exists(databaseDir):
-            print("Could not find " + databaseDir + ", attempting to create...")
-            Path(databaseDir).touch()
-        
-        # get the list of queries
-        queries = os.listdir(genomeDir)
-        
-        
-        # define a function to progressively update the current status of the run
-        
-        def updateRun(message, number, count, accession):
-            runStatus["phase"] = message
-            runStatus["totalTime"] = time.time() - t0
-            runStatus["input"].append(accession)
-            runStatus["progress"] = str((number * 1.0) / len(queries))
-            runStatus["peptides"] = count
-            with open(runDir + runName + '.json', 'w+') as outputFile:
-                outputFile.write(json.dumps(runStatus))
-        
-        count = 0
-        peptideCount = 0
-        
-        for query in queries:
-            peptideCount += mine(genomeDir, runName, pattern, cutoffRank, databaseDir, memeDir, localMotifDir)
-            count += 1
-            updateRun("processing" + query, count, peptideCount, query)
-        
-        print("finished all the runs for " + runName)
-    except Exception as error: 
-        print("An error occured while mining")
-        traceback.print_tb(sys.exc_info()[2])
-        print(str(error))
-
-    # Delete all of the temporary MEME files
-    if os.path.exists(localMotifDir):
-        shutil.rmtree(localMotifDir)
-
-    # Now output all of these entries into CSV files for easier viewing
-    
-    theStuff = ""
-    with open(e6.get() + e1.get() + ".json") as file:
-        theStuff = json.load(file)
-
-    print("Total peptides found: " + str(theStuff["peptides"]))
-    print("Pattern used: " + str(theStuff["pattern"]))
-    print("Cutoff rank: " + str(theStuff["cutoff"]))
-    print("Time elapsed: " + str(theStuff["totalTime"] / 3600) + " hours")
-    print("Genomes mined: " + str(len(theStuff["input"])))
-    print("Average time per genome: " + str(theStuff["totalTime"] / len(theStuff["input"])) + " seconds")
-
-    # regular expression function for regular expression search
-    def regexp(expr, item):
-        reg = re.compile(expr)
-        return reg.search(item) is not None
-
-    conn = sqlite3.connect(e5.get())
-    conn.create_function("REGEXP", 2, regexp)
-    c = conn.cursor()
-
-    selectionStringGenomes = "SELECT DISTINCT genome FROM lassopeptides WHERE runname is '" + config["runName"] + "'"
-    distinctGenomes = []
-    for row in c.execute(selectionStringGenomes):
-        distinctGenomes.append(row[0])
-
-    c.close()
-
-    print("Number of genomes with lasso peptides: " + str(len(distinctGenomes)))
-
-    conn = sqlite3.connect(e5.get())
-    conn.create_function("REGEXP", 2, regexp)
-    c = conn.cursor()
-
-    selectionStringGenomes = "SELECT DISTINCT sequence, rank, genome, start, end, accession, closestProtLists FROM lassopeptides WHERE runname is '" + config["runName"] + "'"
-    peptides = []
-    for row in c.execute(selectionStringGenomes):
-        peptides.append({
-            "sequence": row[0],
-            "rank": row[1],
-            "genome": row[2],
-            "start": row[3],
-            "end": row[4],
-            "accession": row[5],
-            "closests": row[6]
-        })
-    c.close()
-    print("DISTINCT lasso peptide hits: " + str(len(peptides)))
-
-    genomeDict = {}
-    genomeArr = []
-    for genome in distinctGenomes:
-        peptideArr = []
-        runningSum = 0
-        for peptide in peptides:
-            if(peptide["genome"] == genome):
-                peptideArr.append(peptide)
-                runningSum += peptide["rank"]
-        genomeArr.append({
-                "genome": genome,
-                "average" : (1.0 * runningSum) / len(peptideArr),
-                "count": len(peptideArr)
-            }
-        )
-        genomeDict.update({
-            genome: peptideArr
-        })
-    genomeArr.sort(reverse=True, key=lambda i: i['average'])
-    for gen in genomeDict.keys():
-        genomeDict[gen].sort(reverse=True, key=lambda i: i["rank"])
-    for gen in genomeDict.keys():
-        rankList = []
-        peptideList = []
-        startList = []
-        endList = []
-        accessionList = []
-        closestList = []
-        for peptide in genomeDict[gen]:
-            rankList.append(peptide["rank"])
-            peptideList.append(peptide["sequence"])
-            startList.append(peptide["start"])
-            endList.append(peptide["end"])
-            accessionList.append("https://www.ncbi.nlm.nih.gov/nuccore/" + peptide["accession"] + "?report=genbank&from=" + str(peptide["start"]) + "&to=" + str(peptide["end"]))
-            closestList.append(peptide["closests"])
-        genomeDict.update({
-            gen: {
-                "ranks": rankList,
-                "sequences": peptideList,
-                "starts": startList,
-                "ends": endList,
-                "urls": accessionList,
-                "closests": closestList,
-            }
-        })
-
-    for i in range(0, len(genomeArr)):
-        print("Exporting " + e6.get() + genomeArr[i]["genome"] + ".csv")
-
-        sequences = genomeDict[genomeArr[i]["genome"]]["sequences"]
-        ranks = genomeDict[genomeArr[i]["genome"]]["ranks"]
-        starts = genomeDict[genomeArr[i]["genome"]]["starts"]
-        ends = genomeDict[genomeArr[i]["genome"]]["ends"]
-        urls = genomeDict[genomeArr[i]["genome"]]["urls"]
-        closests = genomeDict[genomeArr[i]["genome"]]["closests"]
-
-        newDict = {}
-        newDict["Sequence"] = sequences
-        newDict["Rank"] = ranks
-        newDict["Start"] = starts
-        newDict["End"] = ends
-        newDict["URL"] = urls
-        newDict["Closest Motifs"] = closests
-
-        precsv = pd.DataFrame.from_dict(newDict)
-        precsv.to_csv(e6.get() + genomeArr[i]["genome"] + ".csv")
-
-tk.Button(root, text='Mine', command=runGui).grid(row=9, column=0, sticky=tk.W, pady=4)
-
-root.mainloop()
