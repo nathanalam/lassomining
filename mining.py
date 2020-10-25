@@ -581,3 +581,104 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall, m
         
 
     return count
+
+'''
+Export results of a given runName to CSV
+'''
+def export_to_csv(run_name, database_dir, output_dir):
+    def regexp(expr, item):
+        reg = re.compile(expr)
+        return reg.search(item) is not None
+    
+    print(f'Exporting results of run {run_name}')
+    conn = sqlite3.connect(database_dir)
+    conn.create_function("REGEXP", 2, regexp)
+    c = conn.cursor()
+
+    selectionStringGenomes = "SELECT DISTINCT genome FROM lassopeptides WHERE runname is '" + run_name + "'"
+    distinctGenomes = []
+    for row in c.execute(selectionStringGenomes):
+        distinctGenomes.append(row[0])
+    print("Number of genomes with lasso peptides: " + str(len(distinctGenomes)))
+
+    selectionStringGenomes = "SELECT DISTINCT sequence, rank, genome, start, end, accession, closestProtLists FROM lassopeptides WHERE runname is '" + run_name + "'"
+    peptides = []
+    for row in c.execute(selectionStringGenomes):
+        peptides.append({
+            "sequence": row[0],
+            "rank": row[1],
+            "genome": row[2],
+            "start": row[3],
+            "end": row[4],
+            "accession": row[5],
+            "closests": row[6]
+        })
+    c.close()
+    print("DISTINCT lasso peptide hits: " + str(len(peptides)))
+
+    genomeDict = {}
+    genomeArr = []
+    for genome in distinctGenomes:
+        peptideArr = []
+        runningSum = 0
+        for peptide in peptides:
+            if(peptide["genome"] == genome):
+                peptideArr.append(peptide)
+                runningSum += peptide["rank"]
+        genomeArr.append({
+                "genome": genome,
+                "average" : (1.0 * runningSum) / len(peptideArr),
+                "count": len(peptideArr)
+            }
+        )
+        genomeDict.update({
+            genome: peptideArr
+        })
+    genomeArr.sort(reverse=True, key=lambda i: i['average'])
+    for gen in genomeDict.keys():
+        genomeDict[gen].sort(reverse=True, key=lambda i: i["rank"])
+    for gen in genomeDict.keys():
+        rankList = []
+        peptideList = []
+        startList = []
+        endList = []
+        accessionList = []
+        closestList = []
+        for peptide in genomeDict[gen]:
+            rankList.append(peptide["rank"])
+            peptideList.append(peptide["sequence"])
+            startList.append(peptide["start"])
+            endList.append(peptide["end"])
+            accessionList.append("https://www.ncbi.nlm.nih.gov/nuccore/" + peptide["accession"] + "?report=genbank&from=" + str(peptide["start"]) + "&to=" + str(peptide["end"]))
+            closestList.append(peptide["closests"])
+        genomeDict.update({
+            gen: {
+                "ranks": rankList,
+                "sequences": peptideList,
+                "starts": startList,
+                "ends": endList,
+                "urls": accessionList,
+                "closests": closestList,
+            }
+        })
+
+    for i in range(0, len(genomeArr)):
+        print("Exporting " + output_dir + genomeArr[i]["genome"] + ".csv")
+
+        sequences = genomeDict[genomeArr[i]["genome"]]["sequences"]
+        ranks = genomeDict[genomeArr[i]["genome"]]["ranks"]
+        starts = genomeDict[genomeArr[i]["genome"]]["starts"]
+        ends = genomeDict[genomeArr[i]["genome"]]["ends"]
+        urls = genomeDict[genomeArr[i]["genome"]]["urls"]
+        closests = genomeDict[genomeArr[i]["genome"]]["closests"]
+
+        newDict = {}
+        newDict["Sequence"] = sequences
+        newDict["Rank"] = ranks
+        newDict["Start"] = starts
+        newDict["End"] = ends
+        newDict["URL"] = urls
+        newDict["Closest Motifs"] = closests
+
+        precsv = pd.DataFrame.from_dict(newDict)
+        precsv.to_csv(os.path.join(output_dir, genomeArr[i]["genome"] + ".csv"))

@@ -11,7 +11,7 @@ import sys
 import math
 import pandas as pd
 import sqlite3
-from mining import mine
+from mining import mine, export_to_csv
 
 # Reading parameters from the config file
 config = None
@@ -151,3 +151,6 @@ except Exception as error:
 # Delete all of the temporary MEME files
 if os.path.exists(localMotifDir):
     shutil.rmtree(localMotifDir)
+
+# Export the information into CSVs
+export_to_csv(config["runName"], config["database"], config["outputLogs"])
