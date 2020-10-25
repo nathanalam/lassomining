@@ -150,6 +150,102 @@ def mastSearch(sequence, memeDir, memeInstall):
 
     return motifMatches
 
+'''
+Given a protein sequence, meme motifs, and a meme directory, return a list of open reading
+frames in that sequence with associated motifs
+'''
+def mast_orfs(sequence, memeDir, memeInstall, readingFrame):
+    def find(s, ch):
+        return [i for i, ltr in enumerate(s) if ltr == ch]
+
+    end_indices = find(sequence, '*')
+    orfs = []
+    start_index = 0
+    for end_index in end_indices:
+        orfs.append({
+            "start": start_index,
+            "end": end_index,
+            "counts": {},
+            "motifs": {}
+        })
+        start_index = end_index
+
+    with open("tempseq.txt", "w") as file:
+        file.write("> " + "temporary" + "\n")
+        file.write(sequence)
+        file.close()
+
+    for dir in os.listdir(memeDir):
+        command = memeInstall + '/bin/mast -hit_list ' + memeDir + "/" + dir + ' tempseq.txt > tempout' + dir
+        # print(command)
+        os.system(command)
+
+    for dir in os.listdir(memeDir):
+        matchedProts = []
+        with open("tempout" + dir, "r") as file:
+            inlines = file.readlines()
+            inlines = inlines[2:len(inlines) - 1]
+
+
+            for line in inlines:
+                # remove ending newline character
+                line = line[:len(line) - 1]
+                params = line.split(' ')
+                while('' in params) : 
+                    params.remove('') 
+                try:
+                    newProt = {
+                        "strand" : int(params[1]),
+                        "motif" : params[2],
+                        "start" : int(params[4]),
+                        "end" : int(params[5]),
+                        "score" : float(params[6]),
+                        "p-value" : float(params[7]),
+                        "memeDir": dir[0:len(dir) - 11]
+                    }
+                    matchedProts.append(newProt)
+                except:
+                    print("error in parsing line - " + line)
+                    print("params: " + str(params))
+            file.close()
+            os.remove("tempout" + dir)
+            
+            # assign prots to orfs
+            for prot in matchedProts:
+                for orf in orfs:
+                    if(orf['start'] <= prot['start'] and orf['end'] >= prot['end']):
+                        if(prot["memeDir"] in orf['counts']):
+                            orf['counts'][prot["memeDir"]] += 1
+                        else:
+                            orf['counts'][prot["memeDir"]] = 1
+                        if(prot["memeDir"] in orf['motifs']):
+                            orf['motifs'][prot["memeDir"]].append(prot)
+                        else:
+                            orf['motifs'][prot["memeDir"]] = [prot]
+                        
+                
+
+    os.remove("tempseq.txt")
+
+    matched_orfs = []
+
+    for dir in os.listdir(memeDir):
+        motiftype = dir[0:len(dir) - 11]
+        these_orfs = []
+        for orf in orfs:
+            if(motiftype in orf['counts']):
+                these_orfs.append({
+                    'start': orf['start'],
+                    'end': orf['end'],
+                    'count': orf['counts'][motiftype],
+                    'motifs': orf['motifs'][motiftype],
+                    'readingFrane': readingFrame,
+                    'memeDir': motiftype
+                })
+        matched_orfs.append(sorted(these_orfs, key=lambda orf: orf['count'], reverse=True))
+
+    return matched_orfs
+
 ### Some helper functions
 def isOverlapping(start1, end1, start2, end2):
     if (start1 <= start2) and (end1 >= start2):
