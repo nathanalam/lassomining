@@ -18,7 +18,7 @@ from Bio.Seq import Seq, reverse_complement, translate
 
 # some flags for debugging
 REMOVE_GENOMES_ON_TRANSLATE = False
-PRINT_EACH_FIND = True
+PRINT_EACH_FIND = False
 PRINT_EACH_WRITE = False
 # put -1 to take all above the cutoff
 TAKE_TOP_N = 10
@@ -97,58 +97,6 @@ def readFASTA(name, cleanspace = 0):
         
     return sequenceList
 
-
-'''
-Define a method that lets us take a sequence and identify motif matches from it. 
-Requires the sequence and the directory of the pre-generated MEME motif files as input, 
-and returns a tuple containing the B matches and the C matches.
-'''
-def mastSearch(sequence, memeDir, memeInstall):
-    motifMatches = []
-    with open("tempseq.txt", "w") as file:
-        file.write("> " + "temporary" + "\n")
-        file.write(sequence)
-        file.close()
-
-    for dir in os.listdir(memeDir):
-        command = memeInstall + '/bin/mast -hit_list ' + memeDir + "/" + dir + ' tempseq.txt > tempout' + dir
-        # print(command)
-        os.system(command)
-
-    for dir in os.listdir(memeDir):
-        matchedProts = []
-        with open("tempout" + dir, "r") as file:
-            inlines = file.readlines()
-            inlines = inlines[2:len(inlines) - 1]
-
-        
-            for line in inlines:
-                # remove ending newline character
-                line = line[:len(line) - 1]
-                params = line.split(' ')
-                while('' in params) : 
-                    params.remove('') 
-                try:
-                    newProt = {
-                        "strand" : int(params[1]),
-                        "motif" : params[2],
-                        "start" : int(params[4]),
-                        "end" : int(params[5]),
-                        "score" : float(params[6]),
-                        "p-value" : float(params[7]),
-                        "memeDir": dir[0:len(dir) - 11]
-                    }
-                    matchedProts.append(newProt)
-                except:
-                    print("error in parsing line - " + line)
-                    print("params: " + str(params))
-            file.close()
-            os.remove("tempout" + dir)
-            motifMatches.append(matchedProts)
-
-    os.remove("tempseq.txt")
-
-    return motifMatches
 
 '''
 Given a protein sequence, meme motifs, and a meme directory, return a list of open reading
@@ -239,10 +187,11 @@ def mast_orfs(sequence, memeDir, memeInstall, readingFrame):
                     'end': orf['end'],
                     'count': orf['counts'][motiftype],
                     'motifs': orf['motifs'][motiftype],
-                    'readingFrane': readingFrame,
-                    'memeDir': motiftype
+                    'readingFrame': readingFrame,
+                    'motifType': motiftype,
+                    'sequence': sequence[orf['start']: orf['end']]
                 })
-        matched_orfs.append(sorted(these_orfs, key=lambda orf: orf['count'], reverse=True))
+        matched_orfs.append(sorted(these_orfs, key=lambda orf: orf['count'], reverse=True)[1:4])
 
     return matched_orfs
 
@@ -288,7 +237,7 @@ nearest B/C cluster, and range within the overall sequence.
 def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstall, motifDir):
     # the matched peptides themselves
     Aproteins = []
-    minRank = -100
+    minRank = cutoffRank
     minRankIndex = 0
     # an array of arrays of auxillary proteins (B, C, any other motif specified proteins)
     AuxProteins = []
@@ -302,13 +251,13 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
     RFindex = 0
     for pair in sequenceORFs:
         overallSequence = pair["sequence"]
-        motifMatches = mastSearch(overallSequence, motifDir, memeInstall)
+        motifMatches = mast_orfs(overallSequence, motifDir, memeInstall, RFindex)
         
         index = 0
         for matchSet in motifMatches:
             # adjust the matchSet for the current ORF
             for match in matchSet:
-                match["ORF"] = ReadingFrames[RFindex]
+                match["readingFrame"] = ReadingFrames[RFindex]
                 prange = adjustRangeByORF(ReadingFrames[RFindex], len(overallSequence) * 3, match["start"] * 3, match["end"] * 3)
                 match["start"] = prange[0]
                 match["end"] = prange[1]
@@ -365,9 +314,9 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                         if isOverlapping(start, end, prot["start"], prot["end"]):
                             # skip if precursor overlaps with a motif match
                             continue
-                        if not prot["motif"] in motifTable:
-                            motifTable[prot["motif"]] = []
-                        motifTable[prot["motif"]].append(prot)
+                        if not prot["sequence"] in motifTable:
+                            motifTable[prot["sequence"]] = []
+                        motifTable[prot["sequence"]].append(prot)
                         closestIs.append(prot)
 
                     # iterate over each symbol table value to get a summation, multiply those together
@@ -381,7 +330,11 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                             #     continue
                             
                             diffsquared = (prot["start"] - start) ** 2
-                            diffsquared = diffsquared * prot["p-value"]
+                            minpval = 1
+                            for mot in prot["motifs"]:
+                                if(mot['p-value'] < minpval):
+                                    minpval = mot['p-value']
+                            diffsquared = diffsquared * minpval
                             if diffsquared < closest:
                                 closestI = prot
                                 closest = diffsquared
@@ -391,7 +344,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                     rank = rank * termE
                     closestIs.sort(key=sortFunct)
                     closestProts.append(closestI)
-                    closestProtLists.append(closestIs[0:10])
+                    closestProtLists.append(closestIs[0:3])
 
                 if rank <= 0:
                     continue
@@ -406,6 +359,8 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank, memeInstal
                         print("Found peptide " + match.group(0) + ", rank " + str(rank) +", in " + filenam)
                     if(TAKE_TOP_N > 0):
                         if(rank >= minRank):
+                            print('YAYAYAAYYAYAY')
+                            print(minRank)
                             newA = {
                                 "description": description,
                                 "sequence": match.group(0),
