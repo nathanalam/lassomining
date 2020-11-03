@@ -16,6 +16,10 @@ import time
 from pathlib import Path
 from Bio.Seq import Seq, reverse_complement, translate
 
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
 # some flags for debugging
 REMOVE_GENOMES_ON_TRANSLATE = False
 PRINT_EACH_FIND = False
@@ -275,7 +279,6 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
 
         RFindex += 1
 
-    print(AuxProteins)
     ## find and score each of the potential precursor sequences
     RFindex = 0
     for pair in sequenceORFs:
@@ -301,67 +304,29 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
                 end = indices[1]
 
                 def sortFunct(prot):
-                    return (prot["start"] - start)**2
+                    center = (start + end) / 2
+                    pcenter = (prot['start'] + prot['end']) / 2
+                    return abs(pcenter - center)
 
-                rank = 1
+                rank = 0
 
-                closestProts = []
-                closestProtLists = []
+                closestOrfs = []
                 """
                 Rank the peptide according to the identified motifs
                 """
                 # go through each match set, I ~= B, C, D, etc.
                 for IProteins in AuxProteins:
-                    if (rank is 0):
-                        continue
-                    termE = 1
-                    closest = float("inf")
-                    closestI = None
                     closestIs = []
-
-                    # create a symbol table linking motifs to arrays of proteins
-                    motifTable = {}
-                    for prot in IProteins:
-                        if isOverlapping(start, end, prot["start"],
-                                         prot["end"]):
-                            # skip if precursor overlaps with a motif match
-                            continue
-                        if not prot["sequence"] in motifTable:
-                            motifTable[prot["sequence"]] = []
-                        motifTable[prot["sequence"]].append(prot)
-                        closestIs.append(prot)
-
-                    # iterate over each symbol table value to get a summation, multiply those together
-                    for motif in motifTable:
-
-                        termi = 0
-                        for prot in motifTable[motif]:
-
-                            # skip if not in same direction
-                            # if not ((prot["ORF"] > 0 and ReadingFrames[RFindex] > 0) or (prot["ORF"] < 0 and ReadingFrames[RFindex] < 0)):
-                            #     continue
-
-                            diffsquared = (prot["start"] - start)**2
-                            minpval = 1
-                            for mot in prot["motifs"]:
-                                if (mot['p-value'] < minpval):
-                                    minpval = mot['p-value']
-                            diffsquared = diffsquared * minpval
-                            if diffsquared < closest:
-                                closestI = prot
-                                closest = diffsquared
-                            termi += (1.0 / float(diffsquared))
-
-                        termE = termE * termi
-                    rank = rank * termE
-                    closestIs.sort(key=sortFunct)
-                    closestProts.append(closestI)
-                    closestProtLists.append(closestIs[0:3])
-
-                if rank <= 0:
-                    continue
-                else:
-                    rank = math.log(rank, 10)
+                    for IProtein in IProteins:
+                        center = (start + end) / 2
+                        Icenter = (IProtein['start'] + IProtein['end']) / 2
+                        if(abs(center - Icenter) < 10000 and not isOverlapping(start, end, IProtein['start'], IProtein['end'])):
+                            closestIs.append(IProtein)
+                            
+                    if (len(closestIs) > 0):
+                        closestIs.sort(key=sortFunct)
+                        rank += closestIs[0]['count']
+                        closestOrfs.append(closestIs[0])
 
                 descriptors = description.split()
                 # append the protein to the list of proteins
@@ -379,8 +344,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
                                 "searchRange": indices,
                                 "overallLength": len(overallSequence) * 3,
                                 "rank": rank,
-                                "closestProts": closestProts,
-                                "closestProtLists": closestProtLists,
+                                "closestOrfs": closestOrfs,
                                 "readingFrame": ReadingFrames[RFindex],
                                 "genome":
                                 descriptors[1] + " " + descriptors[2],
@@ -413,8 +377,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
                         "searchRange": indices,
                         "overallLength": len(overallSequence) * 3,
                         "rank": rank,
-                        "closestProts": closestProts,
-                        "closestProtLists": closestProtLists,
+                        "closestOrfs": closestOrfs,
                         "readingFrame": ReadingFrames[RFindex],
                         "genome": descriptors[1] + " " + descriptors[2],
                         "index": descriptors[0],
@@ -433,7 +396,7 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall,
 
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
-             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestProts text, closestProtLists text)'''
+             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestOrfs text)'''
               )
 
     matchedProteins = []
@@ -453,14 +416,13 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall,
                 print("Inserting " + peptide['sequence'] +
                       " into sqlite database")
             c.execute(
-                "INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     peptide['sequence'], peptide['searchRange'][0],
                     peptide['searchRange'][1], peptide['overallLength'],
                     peptide['rank'], peptide['readingFrame'],
                     peptide['genome'], peptide['index'], peptide['runName'],
-                    json.dumps(str(peptide['closestProts'])),
-                    json.dumps(str(peptide['closestProtLists']))
+                    json.dumps(str(peptide['closestOrfs']))
                 ])
 
         matchedProteins.extend(buffer)
@@ -665,7 +627,7 @@ def export_to_csv(run_name, database_dir, output_dir):
     print("Number of genomes with lasso peptides: " +
           str(len(distinctGenomes)))
 
-    selectionStringGenomes = "SELECT DISTINCT sequence, rank, genome, start, end, accession, closestProtLists FROM lassopeptides WHERE runname is '" + run_name + "'"
+    selectionStringGenomes = "SELECT DISTINCT sequence, rank, genome, start, end, accession, closestOrfs FROM lassopeptides WHERE runname is '" + run_name + "'"
     peptides = []
     for row in c.execute(selectionStringGenomes):
         peptides.append({
@@ -781,3 +743,89 @@ def generate_motifs(meme_jobs, output_dir, meme_dir):
         print("An error occured while generating motifs")
         traceback.print_tb(sys.exc_info()[2])
         print(str(error))
+
+def export_to_firebase(db_dir, run_name, cred_file):
+    # regular expression function for regular expression search
+    def regexp(expr, item):
+        reg = re.compile(expr)
+        return reg.search(item) is not None
+
+    # read peptide objects from the 'matches.db' file
+    def readPeptides(sequence, genome, start, end, runName, maxNum):
+        lassopeptides = []
+
+        conn = sqlite3.connect(db_dir)
+        conn.create_function("REGEXP", 2, regexp)
+        c = conn.cursor()
+    
+        # get all lasso peptides, sorted by rank
+        selectionString = """SELECT * FROM lassopeptides WHERE
+        start >= """ + str(start) + """ AND
+        end <= """ + str(end) + """ AND
+        runName LIKE '%""" + runName + """%'
+        ORDER BY 5 DESC 
+        LIMIT """ + str(maxNum)
+        print(selectionString)
+        for row in c.execute(selectionString):
+            lassopeptides.append( {
+                "sequence": row[0],
+                "start": row[1],
+                "end": row[2],
+                "overallLength": row[3],
+                "rank": row[4],
+                "ORF": row[5],
+                "genome": row[6],
+                "index": row[7],
+                "runName": row[8],
+                "closestOrfs": json.loads(row[9]),
+            })
+        c.close()
+        return lassopeptides
+
+    ## Initialize Firebase access
+    # Use a service account
+    if(cred_file):
+        cred = credentials.Certificate(cred_file)
+        firebase_admin.initialize_app(cred)
+    db = firestore.client()
+
+    for peptide in readPeptides("", "", -1000, 1000000000000000, run_name, 100000):
+        print("uploading " + str(peptide['sequence']))
+        data = {
+            "sequence": peptide['sequence'], 
+            "start": peptide['start'], 
+            "end": peptide['end'], 
+            "overallLength": peptide['overallLength'], 
+            "rank": peptide['rank'], 
+            "orf": peptide['ORF'], 
+            "genome": peptide['genome'], 
+            "accession": peptide['index'], 
+            "runName": peptide['runName'], 
+            "closestOrfs": json.dumps(str(peptide['closestOrfs']))
+        }
+        db.collection("genomes").document(data["genome"]).set({})
+        db.collection("peptides").document(data["sequence"] + str(data["start"]) + "-" + str(data["end"]) + str(data["genome"])).set(data)
+
+def clear_firebase(cred_file):
+    def delete_collection(coll_ref, batch_size):
+        docs = coll_ref.limit(batch_size).stream()
+        deleted = 0
+
+        for doc in docs:
+            print(f'Deleting doc {doc.id} => {doc.to_dict()}')
+            doc.reference.delete()
+            deleted = deleted + 1
+
+        if deleted >= batch_size:
+            return delete_collection(coll_ref, batch_size)
+    
+    ## Initialize Firebase access
+    # Use a service account
+    
+    if(cred_file):
+        cred = credentials.Certificate(cred_file)
+        firebase_admin.initialize_app(cred)
+    db = firestore.client()
+
+    delete_collection(db.collection("genomes"), 100)
+    delete_collection(db.collection("peptides"), 100000)
