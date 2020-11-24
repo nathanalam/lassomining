@@ -4,7 +4,7 @@ import json
 import shutil
 import sys
 import yaml
-
+from xml.dom import minidom
 import re
 import traceback
 import sys
@@ -25,7 +25,7 @@ REMOVE_GENOMES_ON_TRANSLATE = False
 PRINT_EACH_FIND = False
 PRINT_EACH_WRITE = False
 # put -1 to take all above the cutoff
-TAKE_TOP_N = 10
+TAKE_TOP_N = 100
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
 an object that contains a list of sequence objects. Each sequence object has a description field 
@@ -110,21 +110,23 @@ frames in that sequence with associated motifs
 
 
 def mast_orfs(sequence, motifs, memeInstall, readingFrame):
-    def find(s, ch):
-        return [i for i, ltr in enumerate(s) if ltr == ch]
 
-    end_indices = find(sequence, '*')
     orfs = []
-    start_index = 0
-    for end_index in end_indices:
-        if (end_index - start_index > 200):
-            orfs.append({
-                "start": start_index,
-                "end": end_index,
-                "counts": {},
-                "motifs": {}
-            })
-        start_index = end_index
+    m_stack = []
+    index = 0
+    for amino_acid in sequence:
+        if (amino_acid == 'M'):
+            m_stack.append(index)
+        elif (amino_acid == '*'):
+            for m in m_stack:
+                orfs.extend([{
+                    "start": m,
+                    "end": index,
+                    "counts": {},
+                    "motifs": {}
+                } for m in m_stack])
+            m_stack = []
+        index += 1
 
     with open("tempseq.txt", "w") as file:
         file.write("> " + "temporary" + "\n")
@@ -157,7 +159,8 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                         "p-value": float(params[7]),
                         "memeDir": motif
                     }
-                    matched_motifs.append(newProt)
+                    if (newProt["score"] > 0):
+                        matched_motifs.append(newProt)
                 except:
                     print("error in parsing line - " + line)
                     print("params: " + str(params))
@@ -185,12 +188,15 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
     for motif in motifs:
         (_, name) = os.path.split(motif)
         these_orfs = []
+        max_motif_num = int(
+            minidom.parse(motif).getElementsByTagName('nmotifs')
+            [0].firstChild.toxml())
         for orf in orfs:
             if (motif in orf['counts']):
                 these_orfs.append({
                     'start': orf['start'],
                     'end': orf['end'],
-                    'count': orf['counts'][motif],
+                    'count': orf['counts'][motif] / max_motif_num,
                     'motifs': orf['motifs'][motif],
                     'readingFrame': readingFrame,
                     'motifType': name,
@@ -304,9 +310,7 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
                 end = indices[1]
 
                 def sortFunct(prot):
-                    center = (start + end) / 2
-                    pcenter = (prot['start'] + prot['end']) / 2
-                    return abs(pcenter - center)
+                    return prot["count"]
 
                 rank = 0
 
@@ -320,13 +324,18 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
                     for IProtein in IProteins:
                         center = (start + end) / 2
                         Icenter = (IProtein['start'] + IProtein['end']) / 2
-                        if(abs(center - Icenter) < 10000 and not isOverlapping(start, end, IProtein['start'], IProtein['end'])):
+                        if (abs(center - Icenter) < 10000
+                                and not isOverlapping(start, end,
+                                                      IProtein['start'],
+                                                      IProtein['end'])):
                             closestIs.append(IProtein)
-                            
+
                     if (len(closestIs) > 0):
-                        closestIs.sort(key=sortFunct)
+                        closestIs.sort(key=sortFunct, reverse=True)
                         rank += closestIs[0]['count']
                         closestOrfs.append(closestIs[0])
+
+                rank = rank / len(AuxProteins)
 
                 descriptors = description.split()
                 # append the protein to the list of proteins
@@ -744,6 +753,7 @@ def generate_motifs(meme_jobs, output_dir, meme_dir):
         traceback.print_tb(sys.exc_info()[2])
         print(str(error))
 
+
 def export_to_firebase(db_dir, run_name, cred_file):
     # regular expression function for regular expression search
     def regexp(expr, item):
@@ -757,7 +767,7 @@ def export_to_firebase(db_dir, run_name, cred_file):
         conn = sqlite3.connect(db_dir)
         conn.create_function("REGEXP", 2, regexp)
         c = conn.cursor()
-    
+
         # get all lasso peptides, sorted by rank
         selectionString = """SELECT * FROM lassopeptides WHERE
         start >= """ + str(start) + """ AND
@@ -767,7 +777,7 @@ def export_to_firebase(db_dir, run_name, cred_file):
         LIMIT """ + str(maxNum)
         print(selectionString)
         for row in c.execute(selectionString):
-            lassopeptides.append( {
+            lassopeptides.append({
                 "sequence": row[0],
                 "start": row[1],
                 "end": row[2],
@@ -784,27 +794,32 @@ def export_to_firebase(db_dir, run_name, cred_file):
 
     ## Initialize Firebase access
     # Use a service account
-    if(cred_file):
+    if (cred_file):
         cred = credentials.Certificate(cred_file)
         firebase_admin.initialize_app(cred)
     db = firestore.client()
 
-    for peptide in readPeptides("", "", -1000, 1000000000000000, run_name, 100000):
+    for peptide in readPeptides("", "", -1000, 1000000000000000, run_name,
+                                100000):
         print("uploading " + str(peptide['sequence']))
         data = {
-            "sequence": peptide['sequence'], 
-            "start": peptide['start'], 
-            "end": peptide['end'], 
-            "overallLength": peptide['overallLength'], 
-            "rank": peptide['rank'], 
-            "orf": peptide['ORF'], 
-            "genome": peptide['genome'], 
-            "accession": peptide['index'], 
-            "runName": peptide['runName'], 
+            "sequence": peptide['sequence'],
+            "start": peptide['start'],
+            "end": peptide['end'],
+            "overallLength": peptide['overallLength'],
+            "rank": peptide['rank'],
+            "orf": peptide['ORF'],
+            "genome": peptide['genome'],
+            "accession": peptide['index'],
+            "runName": peptide['runName'],
             "closestOrfs": json.dumps(str(peptide['closestOrfs']))
         }
         db.collection("genomes").document(data["genome"]).set({})
-        db.collection("peptides").document(data["sequence"] + str(data["start"]) + "-" + str(data["end"]) + str(data["genome"])).set(data)
+        db.collection("peptides").document(data["sequence"] +
+                                           str(data["start"]) + "-" +
+                                           str(data["end"]) +
+                                           str(data["genome"])).set(data)
+
 
 def clear_firebase(cred_file):
     def delete_collection(coll_ref, batch_size):
@@ -818,11 +833,11 @@ def clear_firebase(cred_file):
 
         if deleted >= batch_size:
             return delete_collection(coll_ref, batch_size)
-    
+
     ## Initialize Firebase access
     # Use a service account
-    
-    if(cred_file):
+
+    if (cred_file):
         cred = credentials.Certificate(cred_file)
         firebase_admin.initialize_app(cred)
     db = firestore.client()
