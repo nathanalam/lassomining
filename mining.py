@@ -204,7 +204,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                 })
         matched_orfs.append(
             sorted(these_orfs, key=lambda orf: orf['count'],
-                   reverse=True)[1:4])
+                   reverse=True))
     return matched_orfs
 
 
