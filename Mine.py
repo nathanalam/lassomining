@@ -75,4 +75,4 @@ except Exception as error:
     print(str(error))
 
 # Export the information into CSVs
-export_to_csv(config["runName"], config["database"], config["outputLogs"])
+export_to_csv(config["runName"], config["database"], os.path.join(config["database"], 'csvs'))

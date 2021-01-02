@@ -6,15 +6,9 @@ pattern: 'M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*'
 cutoffRank: -1 # minimum rank to register as a hit
 genomeDir: "/home/user/Projects/lassomining/genomes/" # keep the trailing /
 database: "/home/user/Projects/lassomining/output/matches.db" # no trailing /
-outputLogs: "/home/user/Projects/lassomining/output/runs/" # keep the trailing /
-models:
-  - location: "/home/user/Projects/lassomining/models/b.faa"
-    numOfMotifs: 3
-    maxWidth: 25
-  - location: "/home/user/Projects/lassomining/models/c.faa"
-    numOfMotifs: 4
-    maxWidth: 25
+motifs:
+  - "/home/user/lassomining/models/memeb.xml"
+  - "/home/user/lassomining/models/memec.xml"
   
-## Parameters you should not have to change between runs
-memeDir: "/home/user/meme"
-localMotifDir: "/home/user/Projects/lassomining/motifs/"
+## Parameters you should not have to change
+memeDir: "/home/nalam/meme"
