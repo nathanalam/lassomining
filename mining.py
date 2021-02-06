@@ -12,6 +12,8 @@ import math
 import pandas as pd
 import sqlite3
 import Bio
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
 import time
 import math
 from pathlib import Path
@@ -26,7 +28,7 @@ REMOVE_GENOMES_ON_TRANSLATE = False
 PRINT_EACH_FIND = False
 PRINT_EACH_WRITE = False
 # put -1 to take all above the cutoff per ORF
-TAKE_TOP_N = 10
+TAKE_TOP_N = -1
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
 an object that contains a list of sequence objects. Each sequence object has a description field 
@@ -128,7 +130,6 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                 } for m in m_stack])
             m_stack = []
         index += 1
-
     with open("tempseq.txt", "w") as file:
         file.write("> " + "temporary" + "\n")
         file.write(sequence)
@@ -136,7 +137,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
 
     for motif in motifs:
         (_, name) = os.path.split(motif)
-        command = memeInstall + '/bin/mast -minseqs 15 -hit_list ' + motif + ' tempseq.txt > tempout' + name
+        command = memeInstall + '/bin/mast -remcorr -hit_list ' + motif + ' tempseq.txt > tempout' + name
         # print(command)
         os.system(command)
         matched_motifs = []
@@ -175,17 +176,17 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                     if (orf['start'] <= prot['start']
                             and orf['end'] >= prot['end']):
                         already_exists = False
-                        if (bool(orf['motifs'][prot["memeDir"]])):
+                        if hasattr(orf['motifs'], prot["memeDir"]):
                             for current_index in range(
                                     0, len(orf['motifs'][prot["memeDir"]])):
                                 existing_prot = orf['motifs'][
                                     prot["memeDir"]][current_index]
                                 if existing_prot['motif'] == prot['motif']:
+                                    already_exists = True
                                     # swap if the new prot has higher score
                                     if prot["score"] > existing_prot["score"]:
                                         orf['motifs'][prot["memeDir"]][
                                             current_index] = prot
-                                    already_exists = True
                         if (not already_exists):
                             if (prot["memeDir"] in orf['counts']):
                                 orf['counts'][prot["memeDir"]] += 1
@@ -197,16 +198,21 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                                 orf['motifs'][prot["memeDir"]] = [prot]
 
     os.remove("tempseq.txt")
-
+    # used 3 motifs for the b motif, 4 motifs for the c motif
+    max_motif_nums = [3, 4]
     matched_orfs = []
 
-    for motif in motifs:
+    max_motif_num = []
+    for motif_index, motif in enumerate(motifs):
         (_, name) = os.path.split(motif)
         these_orfs = []
-        max_motif_num = int(
-            minidom.parse(motif).getElementsByTagName('nmotifs')
-            [0].firstChild.toxml())
+        max_motif_num = max_motif_nums[motif_index]
+        t = 0
         for orf in orfs:
+            if (orf["start"] <= t):
+                # skip if viewing duplicate orf
+                continue
+            t = orf["start"]
             if (motif in orf['counts']):
                 these_orfs.append({
                     'start': orf['start'],
@@ -217,8 +223,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                     'motifType': name,
                     'sequence': sequence[orf['start']:orf['end']]
                 })
-        matched_orfs.append(
-            sorted(these_orfs, key=lambda orf: orf['count'], reverse=True))
+        matched_orfs.append(these_orfs)
     return matched_orfs
 
 
@@ -323,9 +328,6 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
                 start = indices[0]
                 end = indices[1]
 
-                def sortFunct(prot):
-                    return prot["count"]
-
                 rank = 0
 
                 closestOrfs = []
@@ -335,14 +337,17 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
                 # go through each match set, I ~= B, C, D, etc.
                 for IProteins in AuxProteins:
                     closestIs = []
+                    center = (start + end) / 2
                     for IProtein in IProteins:
-                        center = (start + end) / 2
                         Icenter = (IProtein['start'] + IProtein['end']) / 2
                         if (abs(center - Icenter) < 10000
                                 and not isOverlapping(start, end,
                                                       IProtein['start'],
                                                       IProtein['end'])):
                             closestIs.append(IProtein)
+
+                    def sortFunct(prot):
+                        return prot["count"] / (prot["start"] - center)
 
                     if (len(closestIs) > 0):
                         closestIs.sort(key=sortFunct, reverse=True)
@@ -680,55 +685,48 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall,
         if (((dirname[len(dirname) - 3:] == "fna") or
              (dirname[len(dirname) - 5:] == "fasta"))
                 and not (dirname[:len(dirname) - 3] + "faa") in ALLDIRNAMES):
+            suffixNum = 5
+            if (dirname[len(dirname) - 3:] == "fna"):
+                suffixNum = 3
+            translatedDirectory = genomeFolder + dirname[:len(dirname) -
+                                                         suffixNum] + "faa"
             print("Opening up " + dirname +
                   " and converting into peptide sequences...")
-            DNAseqs = []
-            seqDescriptions = []
-            try:
-                for fastaobj in readFASTA(genomeFolder + dirname):
-                    DNAseqs.append(fastaobj["sequence"])
-                    seqDescriptions.append(fastaobj["description"])
-            except:
+            with open(os.path.join(genomeFolder, translatedDirectory),
+                      'w') as aa_fa:
+                for dna_record in SeqIO.parse(
+                        os.path.join(genomeFolder, dirname), 'fasta'):
+                    # use both fwd and rev sequences
+                    dna_seqs = [
+                        dna_record.seq,
+                        dna_record.seq.reverse_complement()
+                    ]
 
-                continue
+                    # generate all translation frames
+                    aa_seqs = (s[i:].translate(to_stop=False) for i in range(3)
+                               for s in dna_seqs)
+
+                    # write new records
+                    RFs = [1, 2, 3, -1, -2, -3]
+                    RFindex = 0
+                    for reading_frame in aa_seqs:
+                        aa_record = SeqRecord(
+                            reading_frame,
+                            id=dna_record.id,
+                            description=
+                            f'{dna_record.description} RF {RFs[RFindex]}')
+                        SeqIO.write(aa_record, aa_fa, 'fasta')
+                        RFindex += 1
 
             if (REMOVE_GENOMES_ON_TRANSLATE):
                 try:
                     os.remove(genomeFolder + dirname)
                 except:
                     continue
-
-            entries = []
-            for i in range(0, len(DNAseqs)):
-                print("converting " + str(len(DNAseqs[i])) +
-                      " base pairs from " + seqDescriptions[i])
-                aalist = get_reading_frames(DNAseqs[i])
-                print("created " + str(len(aalist)) +
-                      " peptide sequences from " + seqDescriptions[i])
-                for e in range(0, len(aalist)):
-                    entries.append({
-                        "sequence":
-                        aalist[e]["sequence"],
-                        "description":
-                        str(seqDescriptions[i] + " - ORF " +
-                            str(aalist[e]["ORF"]))
-                    })
-            suffixNum = 5
-            if (dirname[len(dirname) - 3:] == "fna"):
-                suffixNum = 3
-
-            translatedDirectory = genomeFolder + dirname[:len(dirname) -
-                                                         suffixNum] + "faa"
-
-            print("writing read peptides into '" + translatedDirectory + "'")
-            with open(translatedDirectory, 'w') as outfile:
-                for ent in entries:
-                    outfile.write("> " + ent["description"] + "\n")
-                    outfile.write(ent["sequence"] + "\n\n")
         else:
             continue
         # launch the actual mining of the translated genomes
-        print("scanning " + dirname + " for lassos")
+        print("scanning " + translatedDirectory + " for lassos")
         results = scanGenome(runName, pattern, cutoffRank, databaseDir,
                              memeInstall, translatedDirectory, motifs)
         count += len(results)
