@@ -25,7 +25,7 @@ from firebase_admin import firestore
 REMOVE_GENOMES_ON_TRANSLATE = False
 PRINT_EACH_FIND = False
 PRINT_EACH_WRITE = False
-# put -1 to take all above the cutoff
+# put -1 to take all above the cutoff per ORF
 TAKE_TOP_N = 10
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
@@ -161,16 +161,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                         "memeDir": motif
                     }
                     if (newProt["score"] > 0):
-                        motif_index = 0
-                        motif_found = False
-                        for found_motif in matched_motifs:
-                            if(found_motif["motif"] == newProt["motif"]):
-                                motif_found = True
-                                if(found_motif["score"] < newProt["score"]):
-                                    matched_motifs[motif_index] = newProt
-                            motif_index += 1
-                        if not motif_found:
-                            matched_motifs.append(newProt)
+                        matched_motifs.append(newProt)
                 except:
                     print("error in parsing line - " + line)
                     print("params: " + str(params))
@@ -180,16 +171,30 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
             # assign prots to orfs
             for prot in matched_motifs:
                 for orf in orfs:
+                    # add if overlap and higher score than any existing motif match
                     if (orf['start'] <= prot['start']
                             and orf['end'] >= prot['end']):
-                        if (prot["memeDir"] in orf['counts']):
-                            orf['counts'][prot["memeDir"]] += 1
-                        else:
-                            orf['counts'][prot["memeDir"]] = 1
-                        if (prot["memeDir"] in orf['motifs']):
-                            orf['motifs'][prot["memeDir"]].append(prot)
-                        else:
-                            orf['motifs'][prot["memeDir"]] = [prot]
+                        already_exists = False
+                        if (bool(orf['motifs'][prot["memeDir"]])):
+                            for current_index in range(
+                                    0, len(orf['motifs'][prot["memeDir"]])):
+                                existing_prot = orf['motifs'][
+                                    prot["memeDir"]][current_index]
+                                if existing_prot['motif'] == prot['motif']:
+                                    # swap if the new prot has higher score
+                                    if prot["score"] > existing_prot["score"]:
+                                        orf['motifs'][prot["memeDir"]][
+                                            current_index] = prot
+                                    already_exists = True
+                        if (not already_exists):
+                            if (prot["memeDir"] in orf['counts']):
+                                orf['counts'][prot["memeDir"]] += 1
+                            else:
+                                orf['counts'][prot["memeDir"]] = 1
+                            if (prot["memeDir"] in orf['motifs']):
+                                orf['motifs'][prot["memeDir"]].append(prot)
+                            else:
+                                orf['motifs'][prot["memeDir"]] = [prot]
 
     os.remove("tempseq.txt")
 
@@ -213,8 +218,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                     'sequence': sequence[orf['start']:orf['end']]
                 })
         matched_orfs.append(
-            sorted(these_orfs, key=lambda orf: orf['count'],
-                   reverse=True))
+            sorted(these_orfs, key=lambda orf: orf['count'], reverse=True))
     return matched_orfs
 
 
@@ -408,114 +412,118 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
         RFindex += 1
     return Aproteins
 
+
 def secondary_rank(peptide):
-  modifier = 0
+    modifier = 0
 
-  # +1 if within 500 of a biosynthetic protein, +2 if within 150
-  start = peptide['searchRange'][0]
-  less_1000 = False
-  less_500 = False
-  less_150 = False
-  for close_motif in peptide['closestOrfs']:
-    pos = close_motif['start']
-    if(abs(pos - start) < 1000):
-      less_1000 = True
-    if(abs(pos - start) < 500):
-      less_500 = True
-    if(abs(pos - start) < 150):
-      less_150 = True
-  if(less_150):
-    modifier += 2
-  elif(less_500):
-    modifier += 1
-  if(not less_1000):
-    modifier -= 2
+    # +1 if within 500 of a biosynthetic protein, +2 if within 150
+    start = peptide['searchRange'][0]
+    less_1000 = False
+    less_500 = False
+    less_150 = False
+    for close_motif in peptide['closestOrfs']:
+        pos = close_motif['start']
+        if (abs(pos - start) < 1000):
+            less_1000 = True
+        if (abs(pos - start) < 500):
+            less_500 = True
+        if (abs(pos - start) < 150):
+            less_150 = True
+    if (less_150):
+        modifier += 2
+    elif (less_500):
+        modifier += 1
+    if (not less_1000):
+        modifier -= 2
 
-  # sequence analysis
+    # sequence analysis
 
-  triads = []
-  last_ind = 0
-  while((last_ind < len(peptide['sequence']) - 1) and last_ind != -1):
-    try:
-      new_term = peptide['sequence'].index('T', last_ind + 1)
-      if(new_term > 15 and new_term <= 46):
-        leader = peptide['sequence'][0:new_term + 2]  
-        remainder = peptide['sequence'][new_term + 2:]
-        core = re.findall("[A-Z]{6,8}[DE]", remainder)[0]
-        remainder = remainder[len(core):]
-        #M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*
-        triads.append({
-            "leader": leader,
-            "core": core,
-            "tail": remainder
-        })
-      last_ind = new_term
-    except: 
-      break
+    triads = []
+    last_ind = 0
+    while ((last_ind < len(peptide['sequence']) - 1) and last_ind != -1):
+        try:
+            new_term = peptide['sequence'].index('T', last_ind + 1)
+            if (new_term > 15 and new_term <= 46):
+                leader = peptide['sequence'][0:new_term + 2]
+                remainder = peptide['sequence'][new_term + 2:]
+                core = re.findall("[A-Z]{6,8}[DE]", remainder)[0]
+                remainder = remainder[len(core):]
+                #M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*
+                triads.append({
+                    "leader": leader,
+                    "core": core,
+                    "tail": remainder
+                })
+            last_ind = new_term
+        except:
+            break
 
-  # take the maximum of the sequence based modifications
-  seq_mods = []
-  for triad in triads:
-    leader = triad["leader"]
-    core = triad["core"]
-    tail = triad["tail"]
-    triad_mod = 0
+    # take the maximum of the sequence based modifications
+    seq_mods = []
+    for triad in triads:
+        leader = triad["leader"]
+        core = triad["core"]
+        tail = triad["tail"]
+        triad_mod = 0
 
-    # leader based adjustments
-    ## add 2 if leader longer than core
-    if(len(leader) > len(core)):
-      triad_mod += 2
-    ## add 1 if leader / core ratio between .5 and 2
-    ratio = len(leader) * 1.0 / len(core)
-    if(ratio > .5 and ratio < 2):
-      triad_mod += 1
-    ## add 3 if leader contains GXXXXXT
-    if(len(re.findall('G[A-Z]{5}T', 'GABCEFT')) > 0):
-      triad_mod += 3
-    ## +1 if leader has tryptophan
-    if(leader.count('Y') > 0):
-      triad_mod += 1
-    ## -2 if leader has cysteine
-    if(leader.count('C') > 0):
-      triad_mod -= 2
+        # leader based adjustments
+        ## add 2 if leader longer than core
+        if (len(leader) > len(core)):
+            triad_mod += 2
+        ## add 1 if leader / core ratio between .5 and 2
+        ratio = len(leader) * 1.0 / len(core)
+        if (ratio > .5 and ratio < 2):
+            triad_mod += 1
+        ## add 3 if leader contains GXXXXXT
+        if (len(re.findall('G[A-Z]{5}T', 'GABCEFT')) > 0):
+            triad_mod += 3
+        ## +1 if leader has tryptophan
+        if (leader.count('Y') > 0):
+            triad_mod += 1
+        ## -2 if leader has cysteine
+        if (leader.count('C') > 0):
+            triad_mod -= 2
 
-    # core based adjustments
-    ## add 1 if has 2 or 4 cys residues
-    if(core.count('C') == 2 or core.count('C') == 4):
-      triad_mod += 1
-    ## add 1 if 7 member with E, 8 with D or E, or 9 with D
-    if(len(core) == 7 and core[len(core) - 1] == 'E'):
-      triad_mod += 1
-    if(len(core) == 8 and (core[len(core) - 1] == 'E' or core[len(core) - 1] == 'D')):
-      triad_mod += 1
-    if(len(core) == 9 and core[len(core) - 1] == 'D'):
-      triad_mod += 1
-    ## add 2 if starts with G
-    if(core[0] == 'G'):
-      triad_mod += 2
-    ## subtract 4 if no glycine
-    if(core.count('G') == 0):
-      triad_mod -= 4
-    ## +1 if has aromatic, +2 if has 2 aromatic
-    aromatics = ['F', 'W', 'Y', 'H']
-    count = 0
-    for aromatic in aromatics:
-      count += core.count(aromatic)
-    if(count == 1):
-      triad_mod += 1
-    elif(count >= 2):
-      triad_mod += 2
-    ## -2 if odd number of cysteines
-    if(core.count('C') % 2 != 0):
-      triad_mod -= 2
+        # core based adjustments
+        ## add 1 if has 2 or 4 cys residues
+        if (core.count('C') == 2 or core.count('C') == 4):
+            triad_mod += 1
+        ## add 1 if 7 member with E, 8 with D or E, or 9 with D
+        if (len(core) == 7 and core[len(core) - 1] == 'E'):
+            triad_mod += 1
+        if (len(core) == 8 and
+            (core[len(core) - 1] == 'E' or core[len(core) - 1] == 'D')):
+            triad_mod += 1
+        if (len(core) == 9 and core[len(core) - 1] == 'D'):
+            triad_mod += 1
+        ## add 2 if starts with G
+        if (core[0] == 'G'):
+            triad_mod += 2
+        ## subtract 4 if no glycine
+        if (core.count('G') == 0):
+            triad_mod -= 4
+        ## +1 if has aromatic, +2 if has 2 aromatic
+        aromatics = ['F', 'W', 'Y', 'H']
+        count = 0
+        for aromatic in aromatics:
+            count += core.count(aromatic)
+        if (count == 1):
+            triad_mod += 1
+        elif (count >= 2):
+            triad_mod += 2
+        ## -2 if odd number of cysteines
+        if (core.count('C') % 2 != 0):
+            triad_mod -= 2
 
-    seq_mods.append(triad_mod)
-    
+        seq_mods.append(triad_mod)
 
-  modifier += max(seq_mods)
+    modifier += max(seq_mods)
 
-  return(modifier * peptide["rank"])
-    
+    # normalize modifier to be between 0 and 1
+    modifier = (modifier + 8) / 23
+
+    return (modifier * peptide["rank"])
+
 
 def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall,
                genomeDir, motifs):
@@ -523,7 +531,7 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall,
 
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS lassopeptides
-             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestOrfs text)'''
+             (sequence text, start integer, end integer, overallLength integer, rank real, orf integer, genome text, accession text, runName text, closestOrfs text, secondaryRank real)'''
               )
 
     matchedProteins = []
@@ -544,13 +552,13 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall,
                       " into sqlite database")
             adjusted_rank = secondary_rank(peptide)
             c.execute(
-                "INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     peptide['sequence'], peptide['searchRange'][0],
                     peptide['searchRange'][1], peptide['overallLength'],
-                    adjusted_rank, peptide['readingFrame'],
+                    peptide["rank"], peptide['readingFrame'],
                     peptide['genome'], peptide['index'], peptide['runName'],
-                    json.dumps(str(peptide['closestOrfs']))
+                    json.dumps(str(peptide['closestOrfs'])), adjusted_rank
                 ])
 
         matchedProteins.extend(buffer)
@@ -755,7 +763,7 @@ def export_to_csv(run_name, database_dir, output_dir):
     print("Number of genomes with lasso peptides: " +
           str(len(distinctGenomes)))
 
-    selectionStringGenomes = "SELECT DISTINCT sequence, rank, genome, start, end, accession, closestOrfs FROM lassopeptides WHERE runname is '" + run_name + "'"
+    selectionStringGenomes = "SELECT DISTINCT sequence, rank, genome, start, end, accession, closestOrfs, secondaryRank FROM lassopeptides WHERE runname is '" + run_name + "'"
     peptides = []
     for row in c.execute(selectionStringGenomes):
         peptides.append({
@@ -909,6 +917,7 @@ def export_to_firebase(db_dir, run_name, cred_file):
                 "index": row[7],
                 "runName": row[8],
                 "closestOrfs": json.loads(row[9]),
+                "secondaryRank": row[10],
             })
         c.close()
         return lassopeptides
