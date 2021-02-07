@@ -685,48 +685,55 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall,
         if (((dirname[len(dirname) - 3:] == "fna") or
              (dirname[len(dirname) - 5:] == "fasta"))
                 and not (dirname[:len(dirname) - 3] + "faa") in ALLDIRNAMES):
-            suffixNum = 5
-            if (dirname[len(dirname) - 3:] == "fna"):
-                suffixNum = 3
-            translatedDirectory = genomeFolder + dirname[:len(dirname) -
-                                                         suffixNum] + "faa"
             print("Opening up " + dirname +
                   " and converting into peptide sequences...")
-            with open(os.path.join(genomeFolder, translatedDirectory),
-                      'w') as aa_fa:
-                for dna_record in SeqIO.parse(
-                        os.path.join(genomeFolder, dirname), 'fasta'):
-                    # use both fwd and rev sequences
-                    dna_seqs = [
-                        dna_record.seq,
-                        dna_record.seq.reverse_complement()
-                    ]
+            DNAseqs = []
+            seqDescriptions = []
+            try:
+                for fastaobj in readFASTA(genomeFolder + dirname):
+                    DNAseqs.append(fastaobj["sequence"])
+                    seqDescriptions.append(fastaobj["description"])
+            except:
 
-                    # generate all translation frames
-                    aa_seqs = (s[i:].translate(to_stop=False) for i in range(3)
-                               for s in dna_seqs)
-
-                    # write new records
-                    RFs = [1, 2, 3, -1, -2, -3]
-                    RFindex = 0
-                    for reading_frame in aa_seqs:
-                        aa_record = SeqRecord(
-                            reading_frame,
-                            id=dna_record.id,
-                            description=
-                            f'{dna_record.description} RF {RFs[RFindex]}')
-                        SeqIO.write(aa_record, aa_fa, 'fasta')
-                        RFindex += 1
+                continue
 
             if (REMOVE_GENOMES_ON_TRANSLATE):
                 try:
                     os.remove(genomeFolder + dirname)
                 except:
                     continue
+
+            entries = []
+            for i in range(0, len(DNAseqs)):
+                print("converting " + str(len(DNAseqs[i])) +
+                      " base pairs from " + seqDescriptions[i])
+                aalist = get_reading_frames(DNAseqs[i])
+                print("created " + str(len(aalist)) +
+                      " peptide sequences from " + seqDescriptions[i])
+                for e in range(0, len(aalist)):
+                    entries.append({
+                        "sequence":
+                        aalist[e]["sequence"],
+                        "description":
+                        str(seqDescriptions[i] + " - ORF " +
+                            str(aalist[e]["ORF"]))
+                    })
+            suffixNum = 5
+            if (dirname[len(dirname) - 3:] == "fna"):
+                suffixNum = 3
+
+            translatedDirectory = genomeFolder + dirname[:len(dirname) -
+                                                         suffixNum] + "faa"
+
+            print("writing read peptides into '" + translatedDirectory + "'")
+            with open(translatedDirectory, 'w') as outfile:
+                for ent in entries:
+                    outfile.write("> " + ent["description"] + "\n")
+                    outfile.write(ent["sequence"] + "\n\n")
         else:
             continue
         # launch the actual mining of the translated genomes
-        print("scanning " + translatedDirectory + " for lassos")
+        print("scanning " + dirname + " for lassos")
         results = scanGenome(runName, pattern, cutoffRank, databaseDir,
                              memeInstall, translatedDirectory, motifs)
         count += len(results)
