@@ -26,6 +26,8 @@ from firebase_admin import firestore
 import dill as pickle
 import numpy as np
 
+import multiprocessing
+
 with open('NN.pickle', 'rb') as g:
     clf = pickle.load(g)
 with open('vectorize.pickle', 'rb') as g:
@@ -120,7 +122,7 @@ frames in that sequence with associated motifs
 '''
 
 
-def mast_orfs(sequence, motifs, memeInstall, readingFrame):
+def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
 
     orfs = []
     m_stack = []
@@ -138,18 +140,18 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                 } for m in m_stack])
             m_stack = []
         index += 1
-    with open("tempseq.txt", "w") as file:
+    with open(f'tempseq{filenam.replace("/", "-")}.txt', "w") as file:
         file.write("> " + "temporary" + "\n")
         file.write(sequence)
         file.close()
 
     for motif in motifs:
         (_, name) = os.path.split(motif)
-        command = memeInstall + '/bin/mast -remcorr -hit_list ' + motif + ' tempseq.txt > tempout' + name
+        command = memeInstall + '/bin/mast -remcorr -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt > tempout{filenam.replace("/", "-")}' + name
         # print(command)
         os.system(command)
         matched_motifs = []
-        with open("tempout" + name, "r") as file:
+        with open(f'tempout{filenam.replace("/", "-")}' + name, "r") as file:
             inlines = file.readlines()
             inlines = inlines[2:len(inlines) - 1]
 
@@ -175,7 +177,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                     print("error in parsing line - " + line)
                     print("params: " + str(params))
             file.close()
-            os.remove("tempout" + name)
+            os.remove(f'tempout{filenam.replace("/", "-")}' + name)
 
             # assign prots to orfs
             for prot in matched_motifs:
@@ -205,7 +207,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame):
                             else:
                                 orf['motifs'][prot["memeDir"]] = [prot]
 
-    os.remove("tempseq.txt")
+    os.remove(f'tempseq{filenam.replace("/", "-")}.txt')
     # used 3 motifs for the b motif, 4 motifs for the c motif
     max_motif_nums = [3, 4]
     matched_orfs = []
@@ -294,7 +296,8 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
     RFindex = 0
     for pair in sequenceORFs:
         overallSequence = pair["sequence"]
-        motifMatches = mast_orfs(overallSequence, motifs, memeInstall, RFindex)
+        motifMatches = mast_orfs(overallSequence, motifs, memeInstall, RFindex,
+                                 filenam)
 
         index = 0
         for matchSet in motifMatches:
@@ -425,18 +428,21 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
         RFindex += 1
     return Aproteins
 
+
 def classify(sequence_list):
     scores = []
     for seq in sequence_list:
         vector_matrix = np.matrix(vectorize([seq]))
         max_score = 0
         for i in range(0, vector_matrix.shape[1]):
-            temp_score = np.matrix(clf.predict_proba(np.transpose(vector_matrix[:,i])))[:,1]
-            if(temp_score > max_score):
+            temp_score = np.matrix(
+                clf.predict_proba(np.transpose(vector_matrix[:, i])))[:, 1]
+            if (temp_score > max_score):
                 max_score = temp_score
         scores.append(np.sum(max_score))
         # scores.append(np.maximum(np.matrix(clf.predict_proba(vectorize([seq])))[:,1]))
-    return(scores)
+    return (scores)
+
 
 def secondary_rank(peptide):
 
@@ -587,6 +593,71 @@ def get_reading_frames(DNAseq):
     return AAList
 
 
+def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
+                 cutoffRank, databaseDir, memeInstall, motifs):
+    count = 0
+    translatedDirectory = ""
+    if (((dirname[len(dirname) - 3:] == "fna") or
+         (dirname[len(dirname) - 5:] == "fasta"))
+            and not (dirname[:len(dirname) - 3] + "faa") in ALLDIRNAMES):
+        print("Opening up " + dirname +
+              " and converting into peptide sequences...")
+        DNAseqs = []
+        seqDescriptions = []
+        try:
+            for fastaobj in readFASTA(genomeFolder + dirname):
+                DNAseqs.append(fastaobj["sequence"])
+                seqDescriptions.append(fastaobj["description"])
+        except:
+
+            return
+
+        if (REMOVE_GENOMES_ON_TRANSLATE):
+            try:
+                os.remove(genomeFolder + dirname)
+            except:
+                return
+
+        entries = []
+        for i in range(0, len(DNAseqs)):
+            print("converting " + str(len(DNAseqs[i])) + " base pairs from " +
+                  seqDescriptions[i])
+            aalist = get_reading_frames(DNAseqs[i])
+            print("created " + str(len(aalist)) + " peptide sequences from " +
+                  seqDescriptions[i])
+            for e in range(0, len(aalist)):
+                entries.append({
+                    "sequence":
+                    aalist[e]["sequence"],
+                    "description":
+                    str(seqDescriptions[i] + " - ORF " + str(aalist[e]["ORF"]))
+                })
+        suffixNum = 5
+        if (dirname[len(dirname) - 3:] == "fna"):
+            suffixNum = 3
+
+        translatedDirectory = genomeFolder + dirname[:len(dirname) -
+                                                     suffixNum] + "faa"
+
+        print("writing read peptides into '" + translatedDirectory + "'")
+        with open(translatedDirectory, 'w') as outfile:
+            for ent in entries:
+                outfile.write("> " + ent["description"] + "\n")
+                outfile.write(ent["sequence"] + "\n\n")
+    else:
+        return
+    # launch the actual mining of the translated genomes
+    print("scanning " + dirname + " for lassos")
+    results = scanGenome(runName, pattern, cutoffRank, databaseDir,
+                         memeInstall, translatedDirectory, motifs)
+    count += len(results)
+    print("found " + str(count) + " peptides")
+
+    ## clear the genomes subdirectory
+    print("removing " + translatedDirectory)
+    os.remove(translatedDirectory)
+
+
 def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall,
          motifs):
 
@@ -595,68 +666,18 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall,
 
     print("translating fna files in directory folder " + genomeFolder)
     ALLDIRNAMES = os.listdir(genomeFolder)
+
+    mining_processes = []
     for dirname in ALLDIRNAMES:
-        translatedDirectory = ""
-        if (((dirname[len(dirname) - 3:] == "fna") or
-             (dirname[len(dirname) - 5:] == "fasta"))
-                and not (dirname[:len(dirname) - 3] + "faa") in ALLDIRNAMES):
-            print("Opening up " + dirname +
-                  " and converting into peptide sequences...")
-            DNAseqs = []
-            seqDescriptions = []
-            try:
-                for fastaobj in readFASTA(genomeFolder + dirname):
-                    DNAseqs.append(fastaobj["sequence"])
-                    seqDescriptions.append(fastaobj["description"])
-            except:
+        mining_process = multiprocessing.Process(
+            target=mine_process,
+            args=(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
+                  cutoffRank, databaseDir, memeInstall, motifs))
+        mining_processes.append(mining_process)
+        mining_process.start()
 
-                continue
-
-            if (REMOVE_GENOMES_ON_TRANSLATE):
-                try:
-                    os.remove(genomeFolder + dirname)
-                except:
-                    continue
-
-            entries = []
-            for i in range(0, len(DNAseqs)):
-                print("converting " + str(len(DNAseqs[i])) +
-                      " base pairs from " + seqDescriptions[i])
-                aalist = get_reading_frames(DNAseqs[i])
-                print("created " + str(len(aalist)) +
-                      " peptide sequences from " + seqDescriptions[i])
-                for e in range(0, len(aalist)):
-                    entries.append({
-                        "sequence":
-                        aalist[e]["sequence"],
-                        "description":
-                        str(seqDescriptions[i] + " - ORF " +
-                            str(aalist[e]["ORF"]))
-                    })
-            suffixNum = 5
-            if (dirname[len(dirname) - 3:] == "fna"):
-                suffixNum = 3
-
-            translatedDirectory = genomeFolder + dirname[:len(dirname) -
-                                                         suffixNum] + "faa"
-
-            print("writing read peptides into '" + translatedDirectory + "'")
-            with open(translatedDirectory, 'w') as outfile:
-                for ent in entries:
-                    outfile.write("> " + ent["description"] + "\n")
-                    outfile.write(ent["sequence"] + "\n\n")
-        else:
-            continue
-        # launch the actual mining of the translated genomes
-        print("scanning " + dirname + " for lassos")
-        results = scanGenome(runName, pattern, cutoffRank, databaseDir,
-                             memeInstall, translatedDirectory, motifs)
-        count += len(results)
-        print("found " + str(count) + " peptides")
-
-        ## clear the genomes subdirectory
-        print("removing " + translatedDirectory)
-        os.remove(translatedDirectory)
+    for mining_process in mining_processes:
+        mining_process.join()
 
     return count
 
