@@ -1,6 +1,10 @@
 biopython
+demjson
+dill
 pandas
 jupyter
 pyyaml
 matplotlib
 firebase_admin
+scikit-learn==0.24.1
+scipy

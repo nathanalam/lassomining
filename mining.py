@@ -23,6 +23,14 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
+import dill as pickle
+import numpy as np
+
+with open('NN.pickle', 'rb') as g:
+    clf = pickle.load(g)
+with open('vectorize.pickle', 'rb') as g:
+    vectorize = pickle.load(g)
+
 # some flags for debugging
 REMOVE_GENOMES_ON_TRANSLATE = False
 PRINT_EACH_FIND = False
@@ -417,116 +425,23 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
         RFindex += 1
     return Aproteins
 
+def classify(sequence_list):
+    scores = []
+    for seq in sequence_list:
+        vector_matrix = np.matrix(vectorize([seq]))
+        max_score = 0
+        for i in range(0, vector_matrix.shape[1]):
+            temp_score = np.matrix(clf.predict_proba(np.transpose(vector_matrix[:,i])))[:,1]
+            if(temp_score > max_score):
+                max_score = temp_score
+        scores.append(np.sum(max_score))
+        # scores.append(np.maximum(np.matrix(clf.predict_proba(vectorize([seq])))[:,1]))
+    return(scores)
 
 def secondary_rank(peptide):
-    modifier = 0
 
-    # +1 if within 500 of a biosynthetic protein, +2 if within 150
-    start = peptide['searchRange'][0]
-    less_1000 = False
-    less_500 = False
-    less_150 = False
-    for close_motif in peptide['closestOrfs']:
-        pos = close_motif['start']
-        if (abs(pos - start) < 1000):
-            less_1000 = True
-        if (abs(pos - start) < 500):
-            less_500 = True
-        if (abs(pos - start) < 150):
-            less_150 = True
-    if (less_150):
-        modifier += 2
-    elif (less_500):
-        modifier += 1
-    if (not less_1000):
-        modifier -= 2
-
-    # sequence analysis
-
-    triads = []
-    last_ind = 0
-    while ((last_ind < len(peptide['sequence']) - 1) and last_ind != -1):
-        try:
-            new_term = peptide['sequence'].index('T', last_ind + 1)
-            if (new_term > 15 and new_term <= 46):
-                leader = peptide['sequence'][0:new_term + 2]
-                remainder = peptide['sequence'][new_term + 2:]
-                core = re.findall("[A-Z]{6,8}[DE]", remainder)[0]
-                remainder = remainder[len(core):]
-                #M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*
-                triads.append({
-                    "leader": leader,
-                    "core": core,
-                    "tail": remainder
-                })
-            last_ind = new_term
-        except:
-            break
-
-    # take the maximum of the sequence based modifications
-    seq_mods = []
-    for triad in triads:
-        leader = triad["leader"]
-        core = triad["core"]
-        tail = triad["tail"]
-        triad_mod = 0
-
-        # leader based adjustments
-        ## add 2 if leader longer than core
-        if (len(leader) > len(core)):
-            triad_mod += 2
-        ## add 1 if leader / core ratio between .5 and 2
-        ratio = len(leader) * 1.0 / len(core)
-        if (ratio > .5 and ratio < 2):
-            triad_mod += 1
-        ## add 3 if leader contains GXXXXXT
-        if (len(re.findall('G[A-Z]{5}T', 'GABCEFT')) > 0):
-            triad_mod += 3
-        ## +1 if leader has tryptophan
-        if (leader.count('Y') > 0):
-            triad_mod += 1
-        ## -2 if leader has cysteine
-        if (leader.count('C') > 0):
-            triad_mod -= 2
-
-        # core based adjustments
-        ## add 1 if has 2 or 4 cys residues
-        if (core.count('C') == 2 or core.count('C') == 4):
-            triad_mod += 1
-        ## add 1 if 7 member with E, 8 with D or E, or 9 with D
-        if (len(core) == 7 and core[len(core) - 1] == 'E'):
-            triad_mod += 1
-        if (len(core) == 8 and
-            (core[len(core) - 1] == 'E' or core[len(core) - 1] == 'D')):
-            triad_mod += 1
-        if (len(core) == 9 and core[len(core) - 1] == 'D'):
-            triad_mod += 1
-        ## add 2 if starts with G
-        if (core[0] == 'G'):
-            triad_mod += 2
-        ## subtract 4 if no glycine
-        if (core.count('G') == 0):
-            triad_mod -= 4
-        ## +1 if has aromatic, +2 if has 2 aromatic
-        aromatics = ['F', 'W', 'Y', 'H']
-        count = 0
-        for aromatic in aromatics:
-            count += core.count(aromatic)
-        if (count == 1):
-            triad_mod += 1
-        elif (count >= 2):
-            triad_mod += 2
-        ## -2 if odd number of cysteines
-        if (core.count('C') % 2 != 0):
-            triad_mod -= 2
-
-        seq_mods.append(triad_mod)
-
-    modifier += max(seq_mods)
-
-    # normalize modifier to be between 0 and 1
-    modifier = (modifier + 8) / 23
-
+    seq = peptide["sequence"].replace('*', '')
+    modifier = np.sum(classify([seq]))
     return (modifier * peptide["rank"])
 
 
