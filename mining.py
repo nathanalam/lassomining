@@ -28,9 +28,9 @@ import numpy as np
 
 import multiprocessing
 
-with open('NN.pickle', 'rb') as g:
+with open(os.path.join(os.path.dirname(__file__), 'NN.pickle'), 'rb') as g:
     clf = pickle.load(g)
-with open('vectorize.pickle', 'rb') as g:
+with open(os.path.join(os.path.dirname(__file__), 'vectorize.pickle'), 'rb') as g:
     vectorize = pickle.load(g)
 
 # some flags for debugging
