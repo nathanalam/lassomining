@@ -11,6 +11,7 @@ import sys
 import math
 import pandas as pd
 import sqlite3
+import numpy as np
 from mining import mine, export_to_csv, generate_motifs
 
 # Reading parameters from the config file
