@@ -30,8 +30,6 @@ import multiprocessing
 
 with open(os.path.join(os.path.dirname(__file__), 'NN.pickle'), 'rb') as g:
     clf = pickle.load(g)
-with open(os.path.join(os.path.dirname(__file__), 'vectorize.pickle'), 'rb') as g:
-    vectorize = pickle.load(g)
 
 # some flags for debugging
 REMOVE_GENOMES_ON_TRANSLATE = False
@@ -147,7 +145,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
 
     for motif in motifs:
         (_, name) = os.path.split(motif)
-        command = memeInstall + '/bin/mast -remcorr -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt > tempout{filenam.replace("/", "-")}' + name
+        command = memeInstall + '/bin/mast -remcorr -nostatus -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt > tempout{filenam.replace("/", "-")}' + name
         # print(command)
         os.system(command)
         matched_motifs = []
@@ -429,6 +427,173 @@ def patternMatch(sequenceORFs, pattern, filenam, runName, cutoffRank,
     return Aproteins
 
 
+def vectorize(sequence_list):
+    vector_arr = []
+    aa_rep = np.matrix([[
+        0.20412415, 0.15567426, 0.03942035, -0.01822488, -0.14819245,
+        0.19802112, -0.43177231, 0.3272457, -0.18397928, 0.37255573,
+        -0.10809339, 0.2117906, -0.06704938, 0.00071176, -0.22053608,
+        0.35334939, -0.0543725, 0.17522578, -0.06132986, 0.22112548,
+        -0.18809861, -0.03007737, 0.21668077, 0.02817936
+    ],
+                        [
+                            0.20412415, -0.16717617, 0.04522636, 0.0527608,
+                            -0.06514745, 0.10555747, 0.3294438, 0.15377643,
+                            -0.14839629, 0.05564137, 0.44142262, 0.26383881,
+                            -0.27165656, -0.21415267, -0.03675024, -0.13039611,
+                            0.30409053, 0.06596975, -0.37842362, 0.18876561,
+                            0.22838388, -0.06952343, -0.03159155, -0.12939871
+                        ],
+                        [
+                            0.20412415, 0.1718496, 0.21887519, 0.1676149,
+                            0.0961377, 0.15366935, -0.12880583, 0.16764423,
+                            -0.43199321, -0.04598926, -0.06827292, -0.35602773,
+                            0.14094867, 0.10767668, 0.18162269, -0.3756231,
+                            0.24412855, 0.09623603, -0.10614588, -0.22846791,
+                            -0.2298419, 0.02849644, -0.03571025, -0.24963588
+                        ]])
+    btranslator = np.matrix([[
+        1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0
+    ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0
+                             ],
+                             [
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                             ]])
+
+    def get_cores(sequence_list):
+        leaders = []
+        cores = []
+        tails = []
+        for seq in sequence_list:
+            last_ind = 0
+            while ((last_ind < len(seq) - 1) and last_ind != -1):
+                try:
+                    new_term = seq.index('T', last_ind + 1)
+                    if (new_term > 15 and new_term <= 46):
+                        leader = seq[0:new_term + 2]
+                        remainder = seq[new_term + 2:]
+                        core = re.findall("[A-Z]{6,8}[DE]", remainder)[0]
+                        remainder = remainder[len(core):]
+                        #M[A-Z]{15,45}T[A-Z][A-Z]{6,8}[DE][A-Z]{5,30}\*
+                        leaders.append(leader)
+                        cores.append(core)
+                        tails.append(remainder)
+                    last_ind = new_term
+                except:
+                    break
+        return {"leaders": leaders, "cores": cores, "tails": tails}
+
+    def vectorize_swanson(sequence_list):
+        maxLen = 9
+        arr = np.zeros((26 * maxLen, len(sequence_list)))
+        for i in range(0, len(sequence_list)):
+            rowIndex = 0
+            for char in sequence_list[i]:
+                arr[rowIndex + (ord(char) - 65), i] = 1
+                rowIndex += 26
+            mod_arr = np.zeros((3 * maxLen, len(sequence_list)))
+            rowIndex = 0
+            for i in range(0, np.shape(arr)[0], 26):
+                new_three = np.matmul(
+                    aa_rep, np.matmul(btranslator, arr[i:(i + 26), :]))
+                mod_arr[rowIndex:(rowIndex + 3), :] = new_three
+                rowIndex += 3
+        return mod_arr
+
+    s_list = get_cores(sequence_list)["cores"]
+
+    return vectorize_swanson(s_list)
+
+
 def classify(sequence_list):
     scores = []
     for seq in sequence_list:
@@ -477,15 +642,24 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall,
                 print("Inserting " + peptide['sequence'] +
                       " into sqlite database")
             adjusted_rank = secondary_rank(peptide)
-            c.execute(
-                "INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    peptide['sequence'], peptide['searchRange'][0],
-                    peptide['searchRange'][1], peptide['overallLength'],
-                    peptide["rank"], peptide['readingFrame'],
-                    peptide['genome'], peptide['index'], peptide['runName'],
-                    json.dumps(str(peptide['closestOrfs'])), adjusted_rank
-                ])
+            submit_buffer = False
+            while (not submit_buffer):
+                try:
+                    c.execute(
+                        "INSERT INTO lassopeptides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        [
+                            peptide['sequence'], peptide['searchRange'][0],
+                            peptide['searchRange'][1],
+                            peptide['overallLength'], peptide["rank"],
+                            peptide['readingFrame'], peptide['genome'],
+                            peptide['index'], peptide['runName'],
+                            json.dumps(str(
+                                peptide['closestOrfs'])), adjusted_rank
+                        ])
+                    submit_buffer = True
+                except:
+                    print(databaseDir + " is busy, waiting 5 seconds")
+                    time.sleep(5)
 
         matchedProteins.extend(buffer)
 
