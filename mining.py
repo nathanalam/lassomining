@@ -18,6 +18,7 @@ import time
 import math
 from pathlib import Path
 from Bio.Seq import Seq, reverse_complement, translate
+import subprocess
 
 import firebase_admin
 from firebase_admin import credentials
@@ -138,20 +139,24 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                 } for m in m_stack])
             m_stack = []
         index += 1
-    with open(f'tempseq{filenam.replace("/", "-")}.txt', "w") as file:
+    with open(f"{filenam[:len(filenam)-1]}.tempseq.txt", "w") as file:
         file.write("> " + "temporary" + "\n")
         file.write(sequence)
         file.close()
 
-    for motif in motifs:
-        (_, name) = os.path.split(motif)
-        command = memeInstall + '/bin/mast -remcorr -nostatus -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt > tempout{filenam.replace("/", "-")}' + name
-        # print(command)
-        os.system(command)
-        matched_motifs = []
-        with open(f'tempout{filenam.replace("/", "-")}' + name, "r") as file:
-            inlines = file.readlines()
-            inlines = inlines[2:len(inlines) - 1]
+    try:
+        for motif in motifs:
+            (_, name) = os.path.split(motif)
+            # command = memeInstall + '/bin/mast -remcorr -nostatus -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt > tempout{filenam.replace("/", "-")}' + name
+            # command = memeInstall + '/bin/mast -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt'
+            command = [memeInstall + '/bin/mast', '-hit_list', motif, f"{filenam[:len(filenam)-1]}.tempseq.txt"]
+            # print(command)
+            
+            matched_motifs = []
+            output = subprocess.check_output(command, stderr=subprocess.DEVNULL)
+            
+            inlines = output.decode("utf-8").split('\n')
+            inlines = inlines[2:len(inlines) - 2]
 
             for line in inlines:
                 # remove ending newline character
@@ -174,9 +179,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                 except:
                     print("error in parsing line - " + line)
                     print("params: " + str(params))
-            file.close()
-            os.remove(f'tempout{filenam.replace("/", "-")}' + name)
-
+    
             # assign prots to orfs
             for prot in matched_motifs:
                 for orf in orfs:
@@ -204,8 +207,14 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                                 orf['motifs'][prot["memeDir"]].append(prot)
                             else:
                                 orf['motifs'][prot["memeDir"]] = [prot]
-
-    os.remove(f'tempseq{filenam.replace("/", "-")}.txt')
+    except Exception as e: 
+        print("An error occured with running MAST")
+        print(e)
+        if(os.path.exists(f"{filenam[:len(filenam)-1]}.tempseq.txt")):
+            os.remove(f"{filenam[:len(filenam)-1]}.tempseq.txt")
+        
+    if(os.path.exists(f"{filenam[:len(filenam)-1]}.tempseq.txt")):
+        os.remove(f"{filenam[:len(filenam)-1]}.tempseq.txt")
     # used 3 motifs for the b motif, 4 motifs for the c motif
     max_motif_nums = [3, 4]
     matched_orfs = []
@@ -613,6 +622,9 @@ def secondary_rank(peptide):
 
     seq = peptide["sequence"].replace('*', '')
     modifier = np.sum(classify([seq]))
+    # multiply modifier by inverse distance rank
+    for accessory_orf in peptide["closestOrfs"]:
+        modifier = modifier / ((peptide["searchRange"][0] - accessory_orf["start"]) ** 2)
     return (modifier * peptide["rank"])
 
 
@@ -636,7 +648,7 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall,
     for i in range(0, len(readSequences), 6):
         buffer = patternMatch(readSequences[i:i + 6], pattern, genomeDir,
                               runName, cutoffRank, memeInstall, motifs)
-        print("Found " + str(len(buffer)) + " peptides in this set of ORFs")
+        # print("Found " + str(len(buffer)) + " peptides in this set of ORFs")
         for peptide in buffer:
             if (PRINT_EACH_WRITE):
                 print("Inserting " + peptide['sequence'] +
@@ -774,8 +786,8 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
     if (((dirname[len(dirname) - 3:] == "fna") or
          (dirname[len(dirname) - 5:] == "fasta"))
             and not (dirname[:len(dirname) - 3] + "faa") in ALLDIRNAMES):
-        print("Opening up " + dirname +
-              " and converting into peptide sequences...")
+        # print("Opening up " + dirname +
+        #      " and converting into peptide sequences...")
         DNAseqs = []
         seqDescriptions = []
         try:
@@ -794,11 +806,11 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
 
         entries = []
         for i in range(0, len(DNAseqs)):
-            print("converting " + str(len(DNAseqs[i])) + " base pairs from " +
-                  seqDescriptions[i])
+            # print("converting " + str(len(DNAseqs[i])) + " base pairs from " +
+            #      seqDescriptions[i])
             aalist = get_reading_frames(DNAseqs[i])
-            print("created " + str(len(aalist)) + " peptide sequences from " +
-                  seqDescriptions[i])
+            # print("created " + str(len(aalist)) + " peptide sequences from " +
+            #      seqDescriptions[i])
             for e in range(0, len(aalist)):
                 entries.append({
                     "sequence":
@@ -813,7 +825,7 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
         translatedDirectory = genomeFolder + dirname[:len(dirname) -
                                                      suffixNum] + "faa"
 
-        print("writing read peptides into '" + translatedDirectory + "'")
+        # print("writing read peptides into '" + translatedDirectory + "'")
         with open(translatedDirectory, 'w') as outfile:
             for ent in entries:
                 outfile.write("> " + ent["description"] + "\n")
@@ -821,14 +833,18 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
     else:
         return
     # launch the actual mining of the translated genomes
-    print("scanning " + dirname + " for lassos")
-    results = scanGenome(runName, pattern, cutoffRank, databaseDir,
-                         memeInstall, translatedDirectory, motifs)
-    count += len(results)
-    print("found " + str(count) + " peptides")
+    # print("scanning " + dirname + " for lassos")
+    try:
+        results = scanGenome(runName, pattern, cutoffRank, databaseDir,
+                             memeInstall, translatedDirectory, motifs)
+        count += len(results)
+        # print("found " + str(count) + " peptides")
+    except Exception as e:
+        print("An error occured while mining " + dirname)
+        # print(e)
 
     ## clear the genomes subdirectory
-    print("removing " + translatedDirectory)
+    # print("removing " + translatedDirectory)
     os.remove(translatedDirectory)
 
 
@@ -1057,7 +1073,8 @@ def export_to_firebase(db_dir, run_name, cred_file):
             "genome": peptide['genome'],
             "accession": peptide['index'],
             "runName": peptide['runName'],
-            "closestOrfs": json.dumps(str(peptide['closestOrfs']))
+            "closestOrfs": json.dumps(str(peptide['closestOrfs'])),
+            "secondaryRank": peptide['secondaryRank']
         }
         db.collection("genomes").document(data["genome"]).set({})
         db.collection("peptides").document(data["sequence"] +
