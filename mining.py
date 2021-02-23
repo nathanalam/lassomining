@@ -38,7 +38,7 @@ PRINT_EACH_FIND = False
 PRINT_EACH_WRITE = False
 # put -1 to take all above the cutoff per ORF
 TAKE_TOP_N = -1
-SECONDARY_RANK_CUTOFF = 0
+SECONDARY_RANK_CUTOFF = 0.0005
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
 an object that contains a list of sequence objects. Each sequence object has a description field 
@@ -835,15 +835,16 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
                                                      suffixNum] + "faa"
 
         # print("writing read peptides into '" + translatedDirectory + "'")
-        
-        with open(translatedDirectory, 'w') as outfile:
-            for ent in entries:
-                try:
-                    outfile.write("> " + ent["description"] + "\n")
-                    outfile.write(ent["sequence"] + "\n\n")
-                except OSError as e:
-                    # ignore
-                    pass
+        try:
+            with open(translatedDirectory, 'w') as outfile:
+                for ent in entries:
+                    try:
+                        outfile.write("> " + ent["description"] + "\n")
+                        outfile.write(ent["sequence"] + "\n\n")
+                    except OSError as e:
+                        pass
+        except OSError as e:
+            pass
     else:
         return
     # launch the actual mining of the translated genomes
