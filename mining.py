@@ -38,6 +38,7 @@ PRINT_EACH_FIND = False
 PRINT_EACH_WRITE = False
 # put -1 to take all above the cutoff per ORF
 TAKE_TOP_N = -1
+SECONDARY_RANK_CUTOFF = 0.0007
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
 an object that contains a list of sequence objects. Each sequence object has a description field 
@@ -149,12 +150,16 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
             (_, name) = os.path.split(motif)
             # command = memeInstall + '/bin/mast -remcorr -nostatus -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt > tempout{filenam.replace("/", "-")}' + name
             # command = memeInstall + '/bin/mast -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt'
-            command = [memeInstall + '/bin/mast', '-hit_list', motif, f"{filenam[:len(filenam)-1]}.tempseq.txt"]
+            command = [
+                memeInstall + '/bin/mast', '-hit_list', motif,
+                f"{filenam[:len(filenam)-1]}.tempseq.txt"
+            ]
             # print(command)
-            
+
             matched_motifs = []
-            output = subprocess.check_output(command, stderr=subprocess.DEVNULL)
-            
+            output = subprocess.check_output(command,
+                                             stderr=subprocess.DEVNULL)
+
             inlines = output.decode("utf-8").split('\n')
             inlines = inlines[2:len(inlines) - 2]
 
@@ -179,7 +184,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                 except:
                     print("error in parsing line - " + line)
                     print("params: " + str(params))
-    
+
             # assign prots to orfs
             for prot in matched_motifs:
                 for orf in orfs:
@@ -207,13 +212,13 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                                 orf['motifs'][prot["memeDir"]].append(prot)
                             else:
                                 orf['motifs'][prot["memeDir"]] = [prot]
-    except Exception as e: 
+    except Exception as e:
         print("An error occured with running MAST")
         print(e)
-        if(os.path.exists(f"{filenam[:len(filenam)-1]}.tempseq.txt")):
+        if (os.path.exists(f"{filenam[:len(filenam)-1]}.tempseq.txt")):
             os.remove(f"{filenam[:len(filenam)-1]}.tempseq.txt")
-        
-    if(os.path.exists(f"{filenam[:len(filenam)-1]}.tempseq.txt")):
+
+    if (os.path.exists(f"{filenam[:len(filenam)-1]}.tempseq.txt")):
         os.remove(f"{filenam[:len(filenam)-1]}.tempseq.txt")
     # used 3 motifs for the b motif, 4 motifs for the c motif
     max_motif_nums = [3, 4]
@@ -624,7 +629,8 @@ def secondary_rank(peptide):
     modifier = np.sum(classify([seq]))
     # multiply modifier by inverse distance rank
     for accessory_orf in peptide["closestOrfs"]:
-        modifier = modifier / ((peptide["searchRange"][0] - accessory_orf["start"]) ** 2)
+        dist = ((peptide["searchRange"][0] - accessory_orf["start"])**2)
+        modifier = modifier / np.log10(dist)
     return (modifier * peptide["rank"])
 
 
@@ -654,6 +660,8 @@ def scanGenome(runName, pattern, cutoffRank, databaseDir, memeInstall,
                 print("Inserting " + peptide['sequence'] +
                       " into sqlite database")
             adjusted_rank = secondary_rank(peptide)
+            if (adjusted_rank < SECONDARY_RANK_CUTOFF):
+                continue
             submit_buffer = False
             while (not submit_buffer):
                 try:
@@ -845,7 +853,8 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
 
     ## clear the genomes subdirectory
     # print("removing " + translatedDirectory)
-    os.remove(translatedDirectory)
+    if (os.path.exists(translatedDirectory)):
+        os.remove(translatedDirectory)
 
 
 def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall,
