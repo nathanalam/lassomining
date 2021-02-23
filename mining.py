@@ -179,7 +179,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                         "p-value": float(params[7]),
                         "memeDir": motif
                     }
-                    if (newProt["score"] > 0):
+                    if (newProt["p-value"] < 0.05):
                         matched_motifs.append(newProt)
                 except:
                     print("error in parsing line - " + line)
@@ -213,8 +213,9 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                             else:
                                 orf['motifs'][prot["memeDir"]] = [prot]
     except Exception as e:
-        print("An error occured with running MAST")
-        print(e)
+        if(not "<Signals.SIG" in e.__str__):
+            print("An error occured with running MAST")
+            print(e)
         if (os.path.exists(f"{filenam[:len(filenam)-1]}.tempseq.txt")):
             os.remove(f"{filenam[:len(filenam)-1]}.tempseq.txt")
 
@@ -834,10 +835,14 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
                                                      suffixNum] + "faa"
 
         # print("writing read peptides into '" + translatedDirectory + "'")
-        with open(translatedDirectory, 'w') as outfile:
-            for ent in entries:
-                outfile.write("> " + ent["description"] + "\n")
-                outfile.write(ent["sequence"] + "\n\n")
+        try:
+            with open(translatedDirectory, 'w') as outfile:
+                for ent in entries:
+                    outfile.write("> " + ent["description"] + "\n")
+                    outfile.write(ent["sequence"] + "\n\n")
+        except OSError as e:
+            # ignore
+            pass
     else:
         return
     # launch the actual mining of the translated genomes
