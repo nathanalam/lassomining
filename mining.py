@@ -38,7 +38,7 @@ PRINT_EACH_FIND = False
 PRINT_EACH_WRITE = False
 # put -1 to take all above the cutoff per ORF
 TAKE_TOP_N = -1
-SECONDARY_RANK_CUTOFF = 0.0007
+SECONDARY_RANK_CUTOFF = 0
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
 an object that contains a list of sequence objects. Each sequence object has a description field 
@@ -179,7 +179,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                         "p-value": float(params[7]),
                         "memeDir": motif
                     }
-                    if (newProt["p-value"] < 0.05):
+                    if (newProt["p-value"] < 1):
                         matched_motifs.append(newProt)
                 except:
                     print("error in parsing line - " + line)
@@ -213,7 +213,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                             else:
                                 orf['motifs'][prot["memeDir"]] = [prot]
     except Exception as e:
-        if(not "<Signals.SIG" in e.__str__):
+        if(not "<Signals.SIG" in e.__str__()):
             print("An error occured with running MAST")
             print(e)
         if (os.path.exists(f"{filenam[:len(filenam)-1]}.tempseq.txt")):
@@ -835,14 +835,15 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
                                                      suffixNum] + "faa"
 
         # print("writing read peptides into '" + translatedDirectory + "'")
-        try:
-            with open(translatedDirectory, 'w') as outfile:
-                for ent in entries:
+        
+        with open(translatedDirectory, 'w') as outfile:
+            for ent in entries:
+                try:
                     outfile.write("> " + ent["description"] + "\n")
                     outfile.write(ent["sequence"] + "\n\n")
-        except OSError as e:
-            # ignore
-            pass
+                except OSError as e:
+                    # ignore
+                    pass
     else:
         return
     # launch the actual mining of the translated genomes
@@ -854,7 +855,7 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
         # print("found " + str(count) + " peptides")
     except Exception as e:
         print("An error occured while mining " + dirname)
-        # print(e)
+        print(e)
 
     ## clear the genomes subdirectory
     # print("removing " + translatedDirectory)
