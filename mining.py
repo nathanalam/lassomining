@@ -38,7 +38,7 @@ PRINT_EACH_FIND = False
 PRINT_EACH_WRITE = False
 # put -1 to take all above the cutoff per ORF
 TAKE_TOP_N = -1
-SECONDARY_RANK_CUTOFF = 0.0007
+SECONDARY_RANK_CUTOFF = 0
 '''
 Define a function that takes as input the relative path of a FASTA formatted text file, return 
 an object that contains a list of sequence objects. Each sequence object has a description field 
@@ -111,7 +111,7 @@ def readFASTA(name, cleanspace=0):
         print("Number of sequences: " + str(len(sequences)))
         sys.exit(1)
 
-    print("Read " + str(count + 1) + " objects from FASTA file " + name)
+    # print("Read " + str(count + 1) + " objects from FASTA file " + name)
 
     return sequenceList
 
@@ -213,7 +213,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                             else:
                                 orf['motifs'][prot["memeDir"]] = [prot]
     except Exception as e:
-        if(not "<Signals.SIG" in e.__str__):
+        if(not "<Signals.SIG" in str(e)):
             print("An error occured with running MAST")
             print(e)
         if (os.path.exists(f"{filenam[:len(filenam)-1]}.tempseq.txt")):
@@ -794,7 +794,7 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
     translatedDirectory = ""
     if (((dirname[len(dirname) - 3:] == "fna") or
          (dirname[len(dirname) - 5:] == "fasta"))
-            and not (dirname[:len(dirname) - 3] + "faa") in ALLDIRNAMES):
+            and not os.path.exists(os.path.join(genomeFolder, (dirname[:len(dirname) - 3] + "faa")))):
         # print("Opening up " + dirname +
         #      " and converting into peptide sequences...")
         DNAseqs = []
@@ -804,13 +804,14 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
                 DNAseqs.append(fastaobj["sequence"])
                 seqDescriptions.append(fastaobj["description"])
         except:
-
+            print(f"Error in reading FASTA for {genomeFolder + dirname}")
             return
 
         if (REMOVE_GENOMES_ON_TRANSLATE):
             try:
                 os.remove(genomeFolder + dirname)
             except:
+                print(f"Could not remove {genomeFolder + dirname}")
                 return
 
         entries = []
@@ -838,11 +839,13 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
         try:
             with open(translatedDirectory, 'w') as outfile:
                 for ent in entries:
-                    outfile.write("> " + ent["description"] + "\n")
-                    outfile.write(ent["sequence"] + "\n\n")
+                    try:
+                        outfile.write("> " + ent["description"] + "\n")
+                        outfile.write(ent["sequence"] + "\n\n")
+                    except OSError as e:
+                        print(e)
         except OSError as e:
-            # ignore
-            pass
+            print(e)
     else:
         return
     # launch the actual mining of the translated genomes
@@ -854,7 +857,7 @@ def mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
         # print("found " + str(count) + " peptides")
     except Exception as e:
         print("An error occured while mining " + dirname)
-        # print(e)
+        print(e)
 
     ## clear the genomes subdirectory
     # print("removing " + translatedDirectory)
