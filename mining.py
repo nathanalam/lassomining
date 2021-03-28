@@ -27,15 +27,14 @@ from firebase_admin import firestore
 import dill as pickle
 import numpy as np
 
-import multiprocessing
-
 with open(os.path.join(os.path.dirname(__file__), 'NN.pickle'), 'rb') as g:
     clf = pickle.load(g)
 
 # some flags for debugging
-REMOVE_GENOMES_ON_TRANSLATE = False
+REMOVE_GENOMES_ON_TRANSLATE = True
 PRINT_EACH_FIND = False
 PRINT_EACH_WRITE = False
+MAX_MOTIF_NUMS = [3,3,4]
 # put -1 to take all above the cutoff per ORF
 TAKE_TOP_N = -1
 SECONDARY_RANK_CUTOFF = 0
@@ -148,10 +147,15 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
     try:
         for motif in motifs:
             (_, name) = os.path.split(motif)
-            # command = memeInstall + '/bin/mast -remcorr -nostatus -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt > tempout{filenam.replace("/", "-")}' + name
+            # command = memeInstall + '/bin/mast -nostatus -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt > tempout{filenam.replace("/", "-")}' + name
             # command = memeInstall + '/bin/mast -hit_list ' + motif + f' tempseq{filenam.replace("/", "-")}.txt'
+            # -minseqs 3 -remcorr -ev 10.0 -dl http://www.uniprot.org/uniprot/?query=SEQUENCEID&sort=score
+            # command = [
+            #     memeInstall + '/bin/mast', '-hit_list', motif,
+            #     f"{filenam[:len(filenam)-1]}.tempseq.txt"
+            # ]
             command = [
-                memeInstall + '/bin/mast', '-hit_list', motif,
+                memeInstall + '/bin/mast', '-hit_list', '-minseqs', '3', '-remcorr', '-ev', '10', '-dl', 'http://www.uniprot.org/uniprot/?query=SEQUENCEID&sort=score', motif,
                 f"{filenam[:len(filenam)-1]}.tempseq.txt"
             ]
             # print(command)
@@ -179,7 +183,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                         "p-value": float(params[7]),
                         "memeDir": motif
                     }
-                    if (newProt["p-value"] < 0.05):
+                    if (newProt["p-value"] < 0.5):
                         matched_motifs.append(newProt)
                 except:
                     print("error in parsing line - " + line)
@@ -229,7 +233,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
     for motif_index, motif in enumerate(motifs):
         (_, name) = os.path.split(motif)
         these_orfs = []
-        max_motif_num = max_motif_nums[motif_index]
+        max_motif_num = MAX_MOTIF_NUMS[motif_index]
         t = 0
         for orf in orfs:
             if (orf["start"] <= t):
@@ -240,7 +244,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                 these_orfs.append({
                     'start': orf['start'],
                     'end': orf['end'],
-                    'count': orf['counts'][motif] / max_motif_num,
+                    'count': orf['counts'][motif] / MAX_MOTIF_NUMS,
                     'motifs': orf['motifs'][motif],
                     'readingFrame': readingFrame,
                     'motifType': name,
@@ -874,17 +878,9 @@ def mine(genomeFolder, runName, pattern, cutoffRank, databaseDir, memeInstall,
     print("translating fna files in directory folder " + genomeFolder)
     ALLDIRNAMES = os.listdir(genomeFolder)
 
-    mining_processes = []
     for dirname in ALLDIRNAMES:
-        mining_process = multiprocessing.Process(
-            target=mine_process,
-            args=(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
-                  cutoffRank, databaseDir, memeInstall, motifs))
-        mining_processes.append(mining_process)
-        mining_process.start()
-
-    for mining_process in mining_processes:
-        mining_process.join()
+        mine_process(dirname, ALLDIRNAMES, genomeFolder, runName, pattern,
+                  cutoffRank, databaseDir, memeInstall, motifs)
 
     return count
 
