@@ -244,7 +244,7 @@ def mast_orfs(sequence, motifs, memeInstall, readingFrame, filenam):
                 these_orfs.append({
                     'start': orf['start'],
                     'end': orf['end'],
-                    'count': orf['counts'][motif] / MAX_MOTIF_NUMS,
+                    'count': orf['counts'][motif] / max_motif_num,
                     'motifs': orf['motifs'][motif],
                     'readingFrame': readingFrame,
                     'motifType': name,
