@@ -30,6 +30,13 @@ genomeDir = config["genomeDir"]
 databaseDir = config["database"]
 motifs = config["motifs"]
 memeDir = config["memeDir"]
+
+if __name__ == "__main__":
+    print(f"Arguments count: {len(sys.argv)}")
+    if (len(sys.argv) == 2):
+        genomeDir = sys.argv[1]
+        databaseDir = os.path.join(sys.argv[1], 'output/matches.db')
+
 print("Beginning run " + runName)
 print("cutting off hits below " + str(cutoffRank))
 print("searching for pattern " + pattern)
